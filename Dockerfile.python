@@ -1,0 +1,17 @@
+# Dockerfile.sandbox
+FROM python:3.12-slim
+
+# Remove package manager to prevent installs
+# RUN apt-get purge -y --auto-remove apt && \
+#     rm -rf /var/lib/apt /var/cache/apt /usr/bin/apt-get
+
+# Create a non-root user
+RUN useradd -m -s /bin/sh sandbox
+USER sandbox
+WORKDIR /home/sandbox
+
+# Pre-install common safe packages
+COPY --chown=sandbox:sandbox requirements.txt /home/sandbox/
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# No CMD -- we'll pass commands at runtime
