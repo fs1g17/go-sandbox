@@ -1,0 +1,7 @@
+FROM golang:tip-alpine3.23
+
+RUN GOCACHE=/go-cache go build std && chmod -R 777 /go-cache
+
+RUN adduser -D -s /bin/sh sandbox
+USER sandbox
+WORKDIR /home/sandbox
