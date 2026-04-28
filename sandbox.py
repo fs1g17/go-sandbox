@@ -18,7 +18,7 @@ def run_code(
     code: str,
     language: str = "python",
     timeout_seconds: int = 10,
-    memory_limit: str = "128m",
+    memory_limit: str = "512m",
     cpu_period: int = 100_000,
     cpu_quota: int = 50_000,   # 50% of one CPU core
 ) -> ExecutionResult:
@@ -29,21 +29,35 @@ def run_code(
         "python": ["python3", "-c", code],
         "javascript": ["node", "-e", code],
         "bash": ["sh", "-c", code],
+        "golang": ["sh", "-c", f"cat > /tmp/main.go << 'EOF'\n{code}\nEOF\ncd /tmp && go run main.go"],
+    }
+    
+    images = {
+      "python": "code-sandbox-py:latest",
+      "golang": "code-sandbox-go:latest",
     }
 
     cmd = commands.get(language)
     if cmd is None:
         return ExecutionResult("", f"Unsupported language: {language}", 1, False, False)
 
+    image = images.get(language)
+    if image is None:
+        return ExecutionResult("", f"Unsupported language: {language}", 1, False, False)
+
     try:
         container = client.containers.run(
-            "code-sandbox:latest",
+            image,
             command=cmd,
             detach=True,
             # Security constraints
             network_disabled=True,     # no internet access
             read_only=True,            # read-only filesystem
-            tmpfs={"/tmp": "size=10m"},  # writable /tmp, 10MB cap
+            tmpfs={"/tmp": "size=128m,exec"},  # writable /tmp, 128MB cap
+            environment={
+              "GOCACHE": "/tmp/go-cache",
+              "GOPATH": "/tmp/go-path",
+            },
             mem_limit=memory_limit,    # RAM cap
             memswap_limit=memory_limit,  # no swap
             cpu_period=cpu_period,
@@ -87,14 +101,14 @@ def run_code(
         return ExecutionResult("", str(e), 1, True, False)
 
 
-# Test it
-result = run_code('print("hello from sandbox")')
-print(f"stdout: {result.stdout}")
-print(f"exit: {result.exit_code}")
-# stdout: hello from sandbox
-# exit: 0
+# # Test it
+# result = run_code('print("hello from sandbox")')
+# print(f"stdout: {result.stdout}")
+# print(f"exit: {result.exit_code}")
+# # stdout: hello from sandbox
+# # exit: 0
 
-# Test timeout protection
-result = run_code("import time; time.sleep(60)", timeout_seconds=3)
-print(f"timed_out: {result.timed_out}")
-# timed_out: True
+# # Test timeout protection
+# result = run_code("import time; time.sleep(60)", timeout_seconds=3)
+# print(f"timed_out: {result.timed_out}")
+# # timed_out: True
