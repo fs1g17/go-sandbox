@@ -3,3 +3,6 @@ python-image:
 
 go-image:
 	docker build -t code-sandbox-go:latest -f Dockerfile.golang .
+
+run:
+	uvicorn api:app --reload
