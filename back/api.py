@@ -1,10 +1,18 @@
 # api.py
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from sandbox import run_code
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["POST"],
+    allow_headers=["Content-Type"],
+)
 
 class CodeRequest(BaseModel):
     code: str
