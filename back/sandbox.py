@@ -55,7 +55,7 @@ def run_code(
             read_only=True,            # read-only filesystem
             tmpfs={"/tmp": "size=128m,exec"},  # writable /tmp, 128MB cap
             environment={
-              "GOCACHE": "/tmp/go-cache",
+              "GOCACHE": "/go-cache",
               "GOPATH": "/tmp/go-path",
             },
             mem_limit=memory_limit,    # RAM cap

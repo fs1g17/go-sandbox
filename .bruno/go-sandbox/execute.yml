@@ -13,8 +13,9 @@ http:
     type: json
     data: |-
       {
-        "code": "print(\"hello world!\")",
-        "language": "python"
+        "code": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world\")\n}",
+        "language": "golang",
+        "timeout": "20"
       }
   auth: inherit
 
