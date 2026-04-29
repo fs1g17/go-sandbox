@@ -17,6 +17,16 @@ func main() {
 	}
 	defer apiClient.Close()
 
+	v, err := apiClient.VolumeCreate(
+		context.Background(), 
+		client.VolumeCreateOptions{Name: "tmp"},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	volumeMap := make(map[string]struct{})
+
 	result, err := apiClient.ContainerCreate(
 		context.Background(),
 		client.ContainerCreateOptions{
@@ -24,6 +34,7 @@ func main() {
 			Image: "test-go-sandbox:latest",
 			Config: &container.Config{
 				Cmd: []string{"sh", "-c", "echo hello"},
+				Volumes: ,
 			},
 		})
 	if err != nil {

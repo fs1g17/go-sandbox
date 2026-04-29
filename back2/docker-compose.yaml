@@ -1,0 +1,8 @@
+
+services:
+  golang:
+    container_name: golang_test
+    image: test-go-sandbox:latest
+    volumes:
+      - ./code:/home/sandbox
+    command: go run .
