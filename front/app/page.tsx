@@ -21,53 +21,21 @@ export default function Home() {
   ]);
   const [running, setRunning] = useState(false);
 
+  function addLines(lines: TerminalLine[]) {
+    setLines((prev) => [...prev, ...lines]);
+  }
+
   async function handleRun() {
     const code = editorRef.current?.getValue() ?? "";
     setRunning(true);
     setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
 
     try {
-      const res = await fetch(`${API_BASE}/execute`, {
+      await fetch(`${API_BASE}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files: { "main.go": code } }),
       });
-
-      if (!res.ok) {
-        const text = await res.text();
-        setLines((prev) => [
-          ...prev,
-          { text: `Error ${res.status}: ${text}`, type: "error" },
-        ]);
-        return;
-      }
-
-      const data: ExecuteResponse = await res.json();
-
-      if (data.timed_out) {
-        setLines((prev) => [
-          ...prev,
-          { text: "Process timed out.", type: "error" },
-        ]);
-      }
-      if (data.stdout) {
-        data.stdout
-          .split("\n")
-          .forEach((line) =>
-            setLines((prev) => [...prev, { text: line, type: "stdout" }]),
-          );
-      }
-      if (data.stderr) {
-        data.stderr
-          .split("\n")
-          .forEach((line) =>
-            setLines((prev) => [...prev, { text: line, type: "stderr" }]),
-          );
-      }
-      setLines((prev) => [
-        ...prev,
-        { text: `Process exited with code ${data.exit_code}.`, type: "info" },
-      ]);
     } catch (err) {
       setLines((prev) => [
         ...prev,
@@ -85,6 +53,7 @@ export default function Home() {
         lines={lines}
         running={running}
         onRun={handleRun}
+        addLines={addLines}
         onClear={() => setLines([])}
       />
     </div>

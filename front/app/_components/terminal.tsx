@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface TerminalLine {
   text: string;
@@ -12,10 +12,21 @@ interface TerminalProps {
   running: boolean;
   onRun: () => void;
   onClear: () => void;
+  addLines: (lines: TerminalLine[]) => void;
 }
 
-export default function Terminal({ lines, running, onRun, onClear }: TerminalProps) {
+type Status = "open" | "connecting" | "closed";
+
+export default function Terminal({
+  lines,
+  running,
+  onRun,
+  onClear,
+  addLines,
+}: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const connection = useRef<WebSocket | null>(null);
+  const [status, setStatus] = useState<Status>("closed");
 
   useEffect(() => {
     if (terminalRef.current) {
@@ -23,10 +34,57 @@ export default function Terminal({ lines, running, onRun, onClear }: TerminalPro
     }
   }, [lines]);
 
+  useEffect(() => {
+    if (connection.current) {
+      console.log("connection already established");
+      return;
+    }
+
+    console.log("running websocket initialisation");
+
+    const socket = new WebSocket("ws://localhost:8000/terminal");
+    setStatus("connecting");
+
+    // Connection opened
+    socket.addEventListener("open", () => {
+      setStatus("open");
+      console.log("Connection established!");
+    });
+
+    socket.addEventListener("message", (event) => {
+      console.log("Message from server ", event.data);
+      const message: string = event.data as string;
+      const messages = message.split("\n");
+
+      var i = 0;
+      for (const message of messages) {
+        console.log(i + ": " + message);
+        i += 1;
+      }
+
+      const lines = messages.map(
+        (message) =>
+          ({
+            text: message,
+            type: message.includes("stderr") ? "error" : "info",
+          }) as TerminalLine,
+      );
+
+      console.log("lines", lines);
+
+      addLines(lines);
+    });
+  }, []);
+
   return (
-    <div className="flex flex-col border-t border-[#3c3c3c]" style={{ height: "220px" }}>
+    <div
+      className="flex flex-col border-t border-[#3c3c3c]"
+      style={{ height: "220px" }}
+    >
       <div className="flex items-center justify-between px-3 py-1 bg-[#252526] border-b border-[#3c3c3c]">
-        <span className="text-xs text-[#858585] font-mono uppercase tracking-wider">Terminal</span>
+        <span className="text-xs text-[#858585] font-mono uppercase tracking-wider">
+          Terminal
+        </span>
         <div className="flex gap-2">
           <button
             onClick={onClear}
@@ -66,10 +124,10 @@ export default function Terminal({ lines, running, onRun, onClear }: TerminalPro
               line.type === "stderr"
                 ? "text-red-400"
                 : line.type === "error"
-                ? "text-red-500"
-                : line.type === "info"
-                ? "text-[#858585]"
-                : "text-[#d4d4d4]"
+                  ? "text-red-500"
+                  : line.type === "info"
+                    ? "text-[#858585]"
+                    : "text-[#d4d4d4]"
             }
           >
             {line.text || "\u00a0"}
