@@ -26,12 +26,16 @@ func main() {
 		}
 
 		for fileName, fileValue := range req.Files {
-			fmt.Print(fileName + ":" + fileValue)
+			err := writeToFile(fileName, fileValue)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			}
 		}
+
+		run()
+
 		return c.String(http.StatusOK, "ok")
 	})
-
-	// run()
 
 	if err := e.Start(":8000"); err != nil {
 		e.Logger.Error("failed to start server", "error", err)

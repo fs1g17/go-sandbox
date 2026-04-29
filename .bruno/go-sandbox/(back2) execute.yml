@@ -1,0 +1,24 @@
+info:
+  name: (back2) execute
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:8000/execute
+  body:
+    type: json
+    data: |-
+      {
+        "files": {
+          "main.go": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world!!!\")\n}",
+          "two.go": "package main\n\nfunc stuff(){\n\t\n}"
+        }
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
