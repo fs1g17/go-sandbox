@@ -59,4 +59,6 @@ func main() {
 	stdcopy.StdCopy(&stdout, &stderr, logs)
 	fmt.Println("stdout:", stdout.String())
 	fmt.Println("stderr:", stderr.String())
+
+	apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
 }
