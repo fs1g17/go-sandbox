@@ -68,7 +68,7 @@ func getContainerLogs(apiClient *client.Client, result client.ContainerCreateRes
 	}, nil
 }
 
-func run() {
+func run(hub *Hub) {
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
 		panic(err)
@@ -87,6 +87,8 @@ func run() {
 
 	fmt.Printf("stdout: %s", containerLogs.stdout)
 	fmt.Printf("stderr: %s", containerLogs.stderr)
+	msg := fmt.Sprintf("stdout: %s\nstderr: %s\n", containerLogs.stdout, containerLogs.stderr)
+	hub.message <- []byte(msg)
 
 	apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
 }
