@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
@@ -17,24 +18,21 @@ func main() {
 	}
 	defer apiClient.Close()
 
-	v, err := apiClient.VolumeCreate(
-		context.Background(), 
-		client.VolumeCreateOptions{Name: "tmp"},
-	)
+	codeDir, err := filepath.Abs("./code")
 	if err != nil {
 		panic(err)
 	}
 
-	volumeMap := make(map[string]struct{})
-
 	result, err := apiClient.ContainerCreate(
 		context.Background(),
 		client.ContainerCreateOptions{
-			Name:  "poopy-scoopy",
+			Name:  "golang_test",
 			Image: "test-go-sandbox:latest",
 			Config: &container.Config{
-				Cmd: []string{"sh", "-c", "echo hello"},
-				Volumes: ,
+				Cmd: []string{"go", "run", "."},
+			},
+			HostConfig: &container.HostConfig{
+				Binds: []string{codeDir + ":/home/sandbox"},
 			},
 		})
 	if err != nil {

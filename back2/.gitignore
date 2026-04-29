@@ -1,2 +1,5 @@
 ./code/.cache
 ./code/.config
+
+code/.cache/
+code/.config/
