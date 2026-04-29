@@ -8,6 +8,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 )
 
 type ExecuteRequest struct {
@@ -31,6 +32,9 @@ func serve(hub *Hub, c *echo.Context) error {
 
 func main() {
 	e := echo.New()
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:3000"},
+	}))
 	hub := newHub()
 	go hub.run()
 
