@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { editor } from "monaco-editor";
+import { Doc } from "yjs";
+import { WebrtcProvider } from "y-webrtc";
+import { MonacoBinding } from "y-monaco";
 import FileSystem from "./file-system";
 import { CodeExecutor } from "../page";
 
@@ -15,17 +19,11 @@ export default function CodeEditor({
   ref: React.Ref<CodeEditorHandle>;
   codeRef: React.Ref<CodeExecutor>;
 }) {
-  const editorRef = useRef<
-    import("monaco-editor").editor.IStandaloneCodeEditor | null
-  >(null);
-  const yDocRef = useRef<import("yjs").Doc>(null);
-  const providerRef = useRef<import("y-webrtc").WebrtcProvider>(null);
-  const modelsRef = useRef<
-    Map<string, import("monaco-editor").editor.ITextModel>
-  >(new Map());
-  const bindingsRef = useRef<Map<string, import("y-monaco").MonacoBinding>>(
-    new Map(),
-  );
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const yDocRef = useRef<Doc>(null);
+  const providerRef = useRef<WebrtcProvider>(null);
+  const modelsRef = useRef<Map<string, editor.ITextModel>>(new Map());
+  const bindingsRef = useRef<Map<string, MonacoBinding>>(new Map());
 
   const [files, setFiles] = useState<string[]>([]);
   const [activeFile, setActiveFile] = useState<string>();
@@ -62,55 +60,48 @@ export default function CodeEditor({
     const monacoEditorDiv = document.getElementById("monaco-editor");
     if (!monacoEditorDiv) return;
 
-    (async () => {
-      const Y = await import("yjs");
-      const { WebrtcProvider } = await import("y-webrtc");
-      const { MonacoBinding } = await import("y-monaco");
-      const { editor } = await import("monaco-editor");
+    if (!yDocRef.current) {
+      yDocRef.current = new Doc();
+      providerRef.current = new WebrtcProvider("monaco", yDocRef.current);
+      editorRef.current = editor.create(monacoEditorDiv, {
+        value: "",
+        language: "go",
+        theme: "vs-dark",
+      });
 
-      if (!yDocRef.current) {
-        yDocRef.current = new Y.Doc();
-        providerRef.current = new WebrtcProvider("monaco", yDocRef.current);
-        editorRef.current = editor.create(monacoEditorDiv, {
-          value: "",
-          language: "go",
-          theme: "vs-dark",
-        });
+      const yFiles = yDocRef.current.getArray<string>("files");
+      const yState = yDocRef.current.getMap("state");
 
-        const yFiles = yDocRef.current.getArray<string>("files");
-        const yState = yDocRef.current.getMap("state");
-
-        // Register observers exactly once
-        yFiles.observe(() => setFiles(yFiles.toArray()));
-        yState.observe(() => {
-          const af = yState.get("activeFile") as string | undefined;
-          if (af) setActiveFile(af);
-        });
-
-        setFiles(yFiles.toArray());
+      // Register observers exactly once
+      yFiles.observe(() => setFiles(yFiles.toArray()));
+      yState.observe(() => {
         const af = yState.get("activeFile") as string | undefined;
         if (af) setActiveFile(af);
+      });
 
-        return;
-      }
+      setFiles(yFiles.toArray());
+      const af = yState.get("activeFile") as string | undefined;
+      if (af) setActiveFile(af);
 
-      if (!activeFile) return;
+      return;
+    }
 
-      if (!modelsRef.current.has(activeFile)) {
-        const model = editor.createModel("", "go");
-        const yText = yDocRef.current.getText(activeFile);
-        const binding = new MonacoBinding(
-          yText,
-          model,
-          new Set([editorRef.current!]),
-          providerRef.current!.awareness,
-        );
-        modelsRef.current.set(activeFile, model);
-        bindingsRef.current.set(activeFile, binding);
-      }
+    if (!activeFile) return;
 
-      editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
-    })();
+    if (!modelsRef.current.has(activeFile)) {
+      const model = editor.createModel("", "go");
+      const yText = yDocRef.current.getText(activeFile);
+      const binding = new MonacoBinding(
+        yText,
+        model,
+        new Set([editorRef.current!]),
+        providerRef.current!.awareness,
+      );
+      modelsRef.current.set(activeFile, model);
+      bindingsRef.current.set(activeFile, binding);
+    }
+
+    editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
   }, [activeFile]);
 
   return (
