@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import CodeEditor, { CodeEditorHandle } from "./_components/code-editor";
+import FileSystem from "./_components/file-system";
 import Terminal, { TerminalLine } from "./_components/terminal";
 
 const API_BASE =
@@ -14,8 +15,11 @@ interface ExecuteResponse {
   timed_out: boolean;
 }
 
+const FILES = ["main.go"];
+
 export default function Home() {
   const editorRef = useRef<CodeEditorHandle>(null);
+  const [activeFile, setActiveFile] = useState(FILES[0]);
   const [lines, setLines] = useState<TerminalLine[]>([
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
@@ -48,7 +52,14 @@ export default function Home() {
 
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
-      <CodeEditor ref={editorRef} />
+      <div className="flex flex-1 min-h-0">
+        <FileSystem
+          files={FILES}
+          activeFile={activeFile}
+          onFileSelect={setActiveFile}
+        />
+        <CodeEditor ref={editorRef} />
+      </div>
       <Terminal
         lines={lines}
         running={running}
