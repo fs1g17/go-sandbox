@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/coder/websocket"
 	"github.com/labstack/echo/v5"
@@ -91,9 +92,13 @@ func main() {
 
 		fileMap, err := getFiles(req.SessionID)
 		if err != nil {
-			if errors.Is(err, noSessionErr) {
-				return c.JSON(http.StatusNotFound, map[string]string{"error": noSessionErr.Error()})
+			if errors.Is(err, sessionNotDirectory) {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": sessionNotDirectory.Error()})
 			}
+			if os.IsNotExist(err) {
+				return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+			}
+			fmt.Println(err)
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "something went wrong"})
 		}
 

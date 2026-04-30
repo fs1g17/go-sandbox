@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var noSessionErr = errors.New("no such session exists")
+var sessionNotDirectory = errors.New("session is not a directory")
 
 func writeToFile(fileName string, sessionID string, content string) error {
 	path := filepath.Join("./code", sessionID, fileName)
@@ -46,7 +46,13 @@ func makeSessionFolder() (string, error) {
 
 func pathExists(path string) (bool, error) {
 	info, err := os.Stat(path)
-	return (!os.IsNotExist(err) && info.IsDir()), err
+	if os.IsNotExist(err) {
+		return false, err
+	}
+	if !info.IsDir() {
+		return false, sessionNotDirectory
+	}
+	return true, nil
 }
 
 func getFiles(sessionId string) (map[string]string, error) {
@@ -58,12 +64,9 @@ func getFiles(sessionId string) (map[string]string, error) {
 		return fileMap, err
 	}
 
-	exists, err := pathExists(finalPath)
+	_, err = pathExists(finalPath)
 	if err != nil {
 		return fileMap, err
-	}
-	if !exists {
-		return fileMap, noSessionErr
 	}
 
 	entries, err := os.ReadDir(finalPath)
