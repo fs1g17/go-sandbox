@@ -1,5 +1,16 @@
 "use client";
 
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
 const EXT_COLORS: Record<string, string> = {
   go: "#00acd7",
   ts: "#3178c6",
@@ -49,13 +60,26 @@ interface FileSystemProps {
   files: string[];
   activeFile?: string;
   onFileSelect?: (file: string) => void;
+  onAddFile?: (file: string) => void;
 }
 
 export default function FileSystem({
   files,
   activeFile,
   onFileSelect,
+  onAddFile,
 }: FileSystemProps) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+
+  function handleCreate() {
+    const name = input.trim();
+    if (!name) return;
+    onAddFile?.(name);
+    setInput("");
+    setOpen(false);
+  }
+
   return (
     <div
       className="flex flex-col border-r border-[#3c3c3c] select-none"
@@ -67,10 +91,46 @@ export default function FileSystem({
         </span>
       </div>
 
-      <div className="flex items-center px-3 pt-3 pb-1">
+      <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <span className="text-[10px] text-[#6b6b6b] font-mono uppercase tracking-widest font-semibold">
           Files
         </span>
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <button
+              className="flex items-center justify-center w-4 h-4 rounded text-[#6b6b6b] hover:text-[#cccccc] hover:bg-[#2a2d2e] transition-colors"
+              aria-label="New file"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-xs">
+            <DialogHeader>
+              <DialogTitle>New File</DialogTitle>
+            </DialogHeader>
+            <input
+              autoFocus
+              type="text"
+              placeholder="filename.go"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+            <DialogFooter>
+              <Button
+                onClick={handleCreate}
+                disabled={!input.trim()}
+                size="sm"
+              >
+                Create
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <ul className="flex-1 overflow-y-auto py-1">

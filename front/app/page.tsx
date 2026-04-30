@@ -8,22 +8,20 @@ import Terminal, { TerminalLine } from "./_components/terminal";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-interface ExecuteResponse {
-  stdout: string;
-  stderr: string;
-  exit_code: number;
-  timed_out: boolean;
-}
-
-const FILES = ["main.go"];
-
 export default function Home() {
   const editorRef = useRef<CodeEditorHandle>(null);
-  const [activeFile, setActiveFile] = useState(FILES[0]);
+  const [files, setFiles] = useState<string[]>(["main.go"]);
+  const [activeFile, setActiveFile] = useState(files[0]);
   const [lines, setLines] = useState<TerminalLine[]>([
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
   const [running, setRunning] = useState(false);
+
+  function handleAddFile(name: string) {
+    if (files.includes(name)) return;
+    setFiles((prev) => [...prev, name]);
+    setActiveFile(name);
+  }
 
   function addLines(lines: TerminalLine[]) {
     setLines((prev) => [...prev, ...lines]);
@@ -54,9 +52,10 @@ export default function Home() {
     <div className="h-full flex flex-col bg-[#1e1e1e]">
       <div className="flex flex-1 min-h-0">
         <FileSystem
-          files={FILES}
+          files={files}
           activeFile={activeFile}
           onFileSelect={setActiveFile}
+          onAddFile={handleAddFile}
         />
         <CodeEditor ref={editorRef} />
       </div>
