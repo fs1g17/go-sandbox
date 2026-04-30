@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,10 @@ import (
 
 type ExecuteRequest struct {
 	Files map[string]string `json:"files"`
+}
+
+type FilesRequest struct {
+	SessionID string `query:"session_id"`
 }
 
 func serve(hub *Hub, c *echo.Context) error {
@@ -37,10 +42,6 @@ func main() {
 	}))
 	hub := newHub()
 	go hub.run()
-
-	e.GET("/", func(c *echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World!")
-	})
 
 	e.POST("/execute", func(c *echo.Context) error {
 		var req ExecuteRequest
@@ -67,6 +68,35 @@ func main() {
 			return err
 		}
 		return nil
+	})
+
+	e.GET("/new-session", func(c *echo.Context) error {
+		id, err := makeSessionFolder()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusCreated, map[string]string{"session_id": id})
+	})
+
+	e.GET("/files", func(c *echo.Context) error {
+		var req FilesRequest
+		if err := c.Bind(&req); err != nil {
+			fmt.Print(fmt.Errorf("got error: %v", err))
+			return err
+		}
+
+		fmt.Println(req.SessionID)
+
+		fileMap, err := getFiles(req.SessionID)
+		if err != nil {
+			if errors.Is(err, noSessionErr) {
+				return c.JSON(http.StatusNotFound, map[string]string{"error": noSessionErr.Error()})
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "something went wrong"})
+		}
+
+		return c.JSON(http.StatusOK, map[string]map[string]string{"fileMap": fileMap})
 	})
 
 	if err := e.Start(":8000"); err != nil {
