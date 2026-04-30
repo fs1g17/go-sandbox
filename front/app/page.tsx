@@ -10,18 +10,10 @@ const API_BASE =
 
 export default function Home() {
   const editorRef = useRef<CodeEditorHandle>(null);
-  const [files, setFiles] = useState<string[]>(["main.go"]);
-  const [activeFile, setActiveFile] = useState(files[0]);
   const [lines, setLines] = useState<TerminalLine[]>([
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
   const [running, setRunning] = useState(false);
-
-  function handleAddFile(name: string) {
-    if (files.includes(name)) return;
-    setFiles((prev) => [...prev, name]);
-    setActiveFile(name);
-  }
 
   function addLines(lines: TerminalLine[]) {
     setLines((prev) => [...prev, ...lines]);
@@ -50,15 +42,7 @@ export default function Home() {
 
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
-      <div className="flex flex-1 min-h-0">
-        <FileSystem
-          files={files}
-          activeFile={activeFile}
-          onFileSelect={setActiveFile}
-          onAddFile={handleAddFile}
-        />
-        <CodeEditor ref={editorRef} />
-      </div>
+      <CodeEditor ref={editorRef} />
       <Terminal
         lines={lines}
         running={running}
