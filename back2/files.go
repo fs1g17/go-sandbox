@@ -110,3 +110,12 @@ func getSessions() ([]string, error) {
 
 	return sessions, nil
 }
+
+func deleteFile(sessionID string, fileName string) error {
+	path := filepath.Join("./code", sessionID, fileName)
+	finalPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	return os.Remove(finalPath)
+}

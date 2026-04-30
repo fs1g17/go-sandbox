@@ -118,6 +118,7 @@ export default function Home() {
         ref={editorRef}
         codeRef={codeRef}
         initialFiles={initialFiles}
+        sessionId={sessionId}
       />
       <Terminal
         lines={lines}

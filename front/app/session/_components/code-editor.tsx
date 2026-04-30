@@ -12,14 +12,18 @@ export interface CodeEditorHandle {
   getValue: () => string;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
 export default function CodeEditor({
   ref,
   codeRef,
   initialFiles = {},
+  sessionId = "",
 }: {
   ref: React.Ref<CodeEditorHandle>;
   codeRef: React.Ref<CodeExecutor>;
   initialFiles?: Record<string, string>;
+  sessionId?: string;
 }) {
   const yDocRef = useRef<Doc>(null);
   const providerRef = useRef<WebrtcProvider>(null);
@@ -57,6 +61,35 @@ export default function CodeEditor({
     if (!yFiles || yFiles.toArray().includes(name)) return;
     yFiles.push([name]);
     setSharedActiveFile(name);
+  }
+
+  async function handleDeleteFile(name: string) {
+    await fetch(`${API_BASE}/file`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, name }),
+    });
+
+    const yFiles = yDocRef.current?.getArray<string>("files");
+    if (yFiles) {
+      const idx = yFiles.toArray().indexOf(name);
+      if (idx !== -1) yFiles.delete(idx, 1);
+    }
+
+    bindingsRef.current.get(name)?.destroy();
+    bindingsRef.current.delete(name);
+    modelsRef.current.get(name)?.dispose();
+    modelsRef.current.delete(name);
+
+    if (activeFile === name) {
+      const remaining = yDocRef.current?.getArray<string>("files").toArray() ?? [];
+      if (remaining.length > 0) {
+        setSharedActiveFile(remaining[0]);
+      } else {
+        editorRef.current?.setModel(null);
+        setActiveFile(undefined);
+      }
+    }
   }
 
   useEffect(() => {
@@ -133,6 +166,7 @@ export default function CodeEditor({
         activeFile={activeFile}
         onFileSelect={setSharedActiveFile}
         onAddFile={handleAddFile}
+        onDeleteFile={handleDeleteFile}
       />
       <div id="monaco-editor" className="flex-1 min-h-0" />
     </div>
