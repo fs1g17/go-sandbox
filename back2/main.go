@@ -80,7 +80,7 @@ func main() {
 		return c.JSON(http.StatusCreated, map[string]string{"session_id": id})
 	})
 
-	e.GET("/files", func(c *echo.Context) error {
+	e.GET("/session-files", func(c *echo.Context) error {
 		var req FilesRequest
 		if err := c.Bind(&req); err != nil {
 			fmt.Print(fmt.Errorf("got error: %v", err))
@@ -98,6 +98,15 @@ func main() {
 		}
 
 		return c.JSON(http.StatusOK, map[string]map[string]string{"fileMap": fileMap})
+	})
+
+	e.GET("/sessions", func(c *echo.Context) error {
+		sessions, err := getSessions()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, map[string][]string{"session_ids": sessions})
 	})
 
 	if err := e.Start(":8000"); err != nil {

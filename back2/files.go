@@ -86,3 +86,24 @@ func getFiles(sessionId string) (map[string]string, error) {
 	}
 	return fileMap, nil
 }
+
+func getSessions() ([]string, error) {
+	path, err := filepath.Abs("./code")
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var sessions []string
+	for _, e := range entries {
+		if e.IsDir() {
+			sessions = append(sessions, e.Name())
+		}
+	}
+
+	return sessions, nil
+}
