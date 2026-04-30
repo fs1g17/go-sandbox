@@ -15,9 +15,11 @@ export interface CodeEditorHandle {
 export default function CodeEditor({
   ref,
   codeRef,
+  initialFiles = {},
 }: {
   ref: React.Ref<CodeEditorHandle>;
   codeRef: React.Ref<CodeExecutor>;
+  initialFiles?: Record<string, string>;
 }) {
   const yDocRef = useRef<Doc>(null);
   const providerRef = useRef<WebrtcProvider>(null);
@@ -78,6 +80,21 @@ export default function CodeEditor({
         const af = yState.get("activeFile") as string | undefined;
         if (af) setActiveFile(af);
       });
+
+      // Seed from initialFiles if the doc is empty (fresh load)
+      if (yFiles.length === 0 && Object.keys(initialFiles).length > 0) {
+        yDocRef.current.transact(() => {
+          const names = Object.keys(initialFiles);
+          yFiles.push(names);
+          names.forEach((name) => {
+            const yText = yDocRef.current!.getText(name);
+            if (yText.length === 0 && initialFiles[name]) {
+              yText.insert(0, initialFiles[name]);
+            }
+          });
+        });
+        yState.set("activeFile", Object.keys(initialFiles)[0]);
+      }
 
       setFiles(yFiles.toArray());
       const af = yState.get("activeFile") as string | undefined;

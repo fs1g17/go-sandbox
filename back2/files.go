@@ -100,7 +100,7 @@ func getSessions() ([]string, error) {
 
 	var sessions []string
 	for _, e := range entries {
-		if e.IsDir() {
+		if e.IsDir() && e.Name() != ".cache" && e.Name() != ".config" {
 			sessions = append(sessions, e.Name())
 		}
 	}
