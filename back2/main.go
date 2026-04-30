@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,7 +13,12 @@ import (
 )
 
 type ExecuteRequest struct {
-	Files map[string]string `json:"files"`
+	Files     map[string]string `json:"files"`
+	SessionID string            `json:"session_id"`
+}
+
+type FilesRequest struct {
+	SessionID string `query:"session_id"`
 }
 
 func serve(hub *Hub, c *echo.Context) error {
@@ -38,10 +44,6 @@ func main() {
 	hub := newHub()
 	go hub.run()
 
-	e.GET("/", func(c *echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World!")
-	})
-
 	e.POST("/execute", func(c *echo.Context) error {
 		var req ExecuteRequest
 		if err := c.Bind(&req); err != nil {
@@ -50,7 +52,7 @@ func main() {
 		}
 
 		for fileName, fileValue := range req.Files {
-			err := writeToFile(fileName, fileValue)
+			err := writeToFile(fileName, req.SessionID, fileValue)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			}
@@ -67,6 +69,44 @@ func main() {
 			return err
 		}
 		return nil
+	})
+
+	e.GET("/new-session", func(c *echo.Context) error {
+		id, err := makeSessionFolder()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusCreated, map[string]string{"session_id": id})
+	})
+
+	e.GET("/session-files", func(c *echo.Context) error {
+		var req FilesRequest
+		if err := c.Bind(&req); err != nil {
+			fmt.Print(fmt.Errorf("got error: %v", err))
+			return err
+		}
+
+		fmt.Println(req.SessionID)
+
+		fileMap, err := getFiles(req.SessionID)
+		if err != nil {
+			if errors.Is(err, noSessionErr) {
+				return c.JSON(http.StatusNotFound, map[string]string{"error": noSessionErr.Error()})
+			}
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "something went wrong"})
+		}
+
+		return c.JSON(http.StatusOK, map[string]map[string]string{"fileMap": fileMap})
+	})
+
+	e.GET("/sessions", func(c *echo.Context) error {
+		sessions, err := getSessions()
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, map[string][]string{"session_ids": sessions})
 	})
 
 	if err := e.Start(":8000"); err != nil {
