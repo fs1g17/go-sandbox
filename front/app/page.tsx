@@ -2,14 +2,18 @@
 
 import { useRef, useState } from "react";
 import CodeEditor, { CodeEditorHandle } from "./_components/code-editor";
-import FileSystem from "./_components/file-system";
 import Terminal, { TerminalLine } from "./_components/terminal";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+export interface CodeExecutor {
+  getCodeMap: () => { [key: string]: string };
+}
+
 export default function Home() {
   const editorRef = useRef<CodeEditorHandle>(null);
+  const codeRef = useRef<CodeExecutor>(null);
   const [lines, setLines] = useState<TerminalLine[]>([
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
@@ -24,11 +28,13 @@ export default function Home() {
     setRunning(true);
     setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
 
+    const codeMap = codeRef.current?.getCodeMap();
+
     try {
       await fetch(`${API_BASE}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: { "main.go": code } }),
+        body: JSON.stringify({ files: codeMap }),
       });
     } catch (err) {
       setLines((prev) => [
@@ -42,7 +48,7 @@ export default function Home() {
 
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
-      <CodeEditor ref={editorRef} />
+      <CodeEditor ref={editorRef} codeRef={codeRef} />
       <Terminal
         lines={lines}
         running={running}

@@ -2,6 +2,7 @@
 
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import FileSystem from "./file-system";
+import { CodeExecutor } from "../page";
 
 export interface CodeEditorHandle {
   getValue: () => string;
@@ -9,8 +10,10 @@ export interface CodeEditorHandle {
 
 export default function CodeEditor({
   ref,
+  codeRef,
 }: {
   ref: React.Ref<CodeEditorHandle>;
+  codeRef: React.Ref<CodeExecutor>;
 }) {
   const editorRef = useRef<
     import("monaco-editor").editor.IStandaloneCodeEditor | null
@@ -28,6 +31,16 @@ export default function CodeEditor({
   const [activeFile, setActiveFile] = useState<string>();
   useImperativeHandle(ref, () => ({
     getValue: () => editorRef.current?.getValue() ?? "",
+  }));
+
+  useImperativeHandle(codeRef, () => ({
+    getCodeMap: () => {
+      const result: { [key: string]: string } = {};
+      modelsRef.current.forEach((value, key) => {
+        result[key] = value.getValue();
+      });
+      return result;
+    },
   }));
 
   function setSharedActiveFile(name: string) {
@@ -78,7 +91,7 @@ export default function CodeEditor({
         const af = yState.get("activeFile") as string | undefined;
         if (af) setActiveFile(af);
 
-        return; // activeFile update will re-trigger this effect
+        return;
       }
 
       if (!activeFile) return;
