@@ -1,8 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import CodeEditor, { CodeEditorHandle } from "./_components/code-editor";
+import dynamic from "next/dynamic";
+import type { CodeEditorHandle } from "./_components/code-editor";
 import Terminal, { TerminalLine } from "./_components/terminal";
+
+const CodeEditor = dynamic(() => import("./_components/code-editor"), {
+  ssr: false,
+});
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -24,7 +29,6 @@ export default function Home() {
   }
 
   async function handleRun() {
-    const code = editorRef.current?.getValue() ?? "";
     setRunning(true);
     setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
 
