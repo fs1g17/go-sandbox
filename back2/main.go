@@ -27,6 +27,10 @@ type DeleteFileRequest struct {
 	Name      string `json:"name"`
 }
 
+type DeleteSessionRequest struct {
+	SessionID string `json:"session_id"`
+}
+
 func serve(hub *Hub, c *echo.Context) error {
 	conn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
@@ -131,6 +135,19 @@ func main() {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
+		return c.NoContent(http.StatusOK)
+	})
+
+	e.DELETE("/session", func(c *echo.Context) error {
+		var req DeleteSessionRequest
+		if err := c.Bind(&req); err != nil {
+			fmt.Print(fmt.Errorf("got error: %v", err))
+			return err
+		}
+		err := deleteSession(req.SessionID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
 		return c.NoContent(http.StatusOK)
 	})
 

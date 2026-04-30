@@ -6,6 +6,13 @@ info:
 http:
   method: DELETE
   url: http://localhost:8000/file
+  body:
+    type: json
+    data: |-
+      {
+        "session_id":"b4eb5e26-b3fc-4890-827b-4074481a4912",
+      "name": "go.mod"
+      }
   auth: inherit
 
 settings:
