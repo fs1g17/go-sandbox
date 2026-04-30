@@ -24,18 +24,25 @@ export default function CodeEditor({
     new Map(),
   );
 
-  const [files, setFiles] = useState<string[]>(["main.go"]);
-  const [activeFile, setActiveFile] = useState(files[0]);
+  const [files, setFiles] = useState<string[]>([]);
+  const [activeFile, setActiveFile] = useState<string>();
   useImperativeHandle(ref, () => ({
     getValue: () => editorRef.current?.getValue() ?? "",
   }));
 
-  function handleAddFile(name: string) {
-    if (files.includes(name)) return;
-    setFiles((prev) => [...prev, name]);
-    setActiveFile(name);
+  function setSharedActiveFile(name: string) {
+    if (yDocRef.current) {
+      yDocRef.current.getMap("state").set("activeFile", name);
+    } else {
+      setActiveFile(name);
+    }
+  }
 
-    if (!yDocRef.current) return;
+  function handleAddFile(name: string) {
+    const yFiles = yDocRef.current?.getArray<string>("files");
+    if (!yFiles || yFiles.toArray().includes(name)) return;
+    yFiles.push([name]);
+    setSharedActiveFile(name);
   }
 
   useEffect(() => {
@@ -56,7 +63,25 @@ export default function CodeEditor({
           language: "go",
           theme: "vs-dark",
         });
+
+        const yFiles = yDocRef.current.getArray<string>("files");
+        const yState = yDocRef.current.getMap("state");
+
+        // Register observers exactly once
+        yFiles.observe(() => setFiles(yFiles.toArray()));
+        yState.observe(() => {
+          const af = yState.get("activeFile") as string | undefined;
+          if (af) setActiveFile(af);
+        });
+
+        setFiles(yFiles.toArray());
+        const af = yState.get("activeFile") as string | undefined;
+        if (af) setActiveFile(af);
+
+        return; // activeFile update will re-trigger this effect
       }
+
+      if (!activeFile) return;
 
       if (!modelsRef.current.has(activeFile)) {
         const model = editor.createModel("", "go");
@@ -73,10 +98,6 @@ export default function CodeEditor({
 
       editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
     })();
-
-    return () => {
-      //editorRef.current?.dispose();
-    };
   }, [activeFile]);
 
   return (
@@ -84,7 +105,7 @@ export default function CodeEditor({
       <FileSystem
         files={files}
         activeFile={activeFile}
-        onFileSelect={setActiveFile}
+        onFileSelect={setSharedActiveFile}
         onAddFile={handleAddFile}
       />
       <div id="monaco-editor" className="flex-1 min-h-0" />
