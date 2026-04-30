@@ -13,7 +13,8 @@ import (
 )
 
 type ExecuteRequest struct {
-	Files map[string]string `json:"files"`
+	Files     map[string]string `json:"files"`
+	SessionID string            `json:"session_id"`
 }
 
 type FilesRequest struct {
@@ -51,7 +52,7 @@ func main() {
 		}
 
 		for fileName, fileValue := range req.Files {
-			err := writeToFile(fileName, fileValue)
+			err := writeToFile(fileName, req.SessionID, fileValue)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			}

@@ -10,8 +10,8 @@ import (
 
 var noSessionErr = errors.New("no such session exists")
 
-func writeToFile(fileName string, content string) error {
-	path := filepath.Join("./code", fileName)
+func writeToFile(fileName string, sessionID string, content string) error {
+	path := filepath.Join("./code", sessionID, fileName)
 	finalPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -37,6 +37,9 @@ func makeSessionFolder() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	writeToFile("go.mod", id.String(), "module example.com\n\ngo 1.24.5")
+	writeToFile("main.go", id.String(), "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world!!!\")\n}")
 
 	return id.String(), nil
 }
