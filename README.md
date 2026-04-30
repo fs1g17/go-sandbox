@@ -2,6 +2,27 @@
 
 The purpose of this project is to create a collaborative go sandbox for executing Go code remotely
 
+## How to Run
+
+### backend
+
+Need to have go installed. Then:
+
+- `cd back`
+- `go mod download`
+- `go mod tidy`
+- `go run .`
+
+### frontend
+
+Need to have npm installed
+
+- `cd front`
+- `npm ci`
+- `npm run dev`
+
+Navigate to `http://localhost:3000` and check it out
+
 ### TODO
 
 - ~~implement backend with Go (not testcontainers, there's the moby project)~~
