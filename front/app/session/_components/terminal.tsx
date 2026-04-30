@@ -74,6 +74,26 @@ export default function Terminal({
 
       addLines(lines);
     });
+
+    const closeEventListener = (event: CloseEvent) => {
+      setStatus("closed");
+      connection.current = null;
+      console.log(`OnClose: ${event.code} ${event.reason}`);
+    };
+
+    socket.addEventListener("close", closeEventListener);
+
+    connection.current = socket;
+
+    return () => {
+      console.log("running cleanup");
+      if (connection.current) {
+        console.log("running close");
+        connection.current.removeEventListener("close", closeEventListener);
+        connection.current.close();
+        connection.current = null;
+      }
+    };
   }, []);
 
   return (

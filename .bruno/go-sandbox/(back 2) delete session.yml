@@ -1,0 +1,15 @@
+info:
+  name: (back 2) delete session
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: http://localhost:8000/session
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

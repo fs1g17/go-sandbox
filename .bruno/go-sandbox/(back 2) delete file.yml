@@ -1,0 +1,22 @@
+info:
+  name: (back 2) delete file
+  type: http
+  seq: 6
+
+http:
+  method: DELETE
+  url: http://localhost:8000/file
+  body:
+    type: json
+    data: |-
+      {
+        "session_id":"b4eb5e26-b3fc-4890-827b-4074481a4912",
+      "name": "go.mod"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

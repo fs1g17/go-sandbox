@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -10,6 +18,8 @@ export default function Home() {
   const [sessions, setSessions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function fetchSessions() {
@@ -21,6 +31,19 @@ export default function Home() {
       setError("Failed to reach backend.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function deleteSession(id: string) {
+    try {
+      await fetch(`${API_BASE}/session`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: id }),
+      });
+      await fetchSessions();
+    } catch {
+      setError("Failed to delete session.");
     }
   }
 
@@ -242,6 +265,31 @@ export default function Home() {
           transform: translateX(3px);
         }
 
+        .session-delete {
+          opacity: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          border: none;
+          background: transparent;
+          color: #555;
+          cursor: pointer;
+          border-radius: 2px;
+          transition: opacity 0.15s, color 0.15s, background 0.15s;
+          flex-shrink: 0;
+        }
+
+        .session-row:hover .session-delete {
+          opacity: 1;
+        }
+
+        .session-delete:hover {
+          color: #f87171;
+          background: rgba(239, 68, 68, 0.1);
+        }
+
         .empty-state {
           text-align: center;
           padding: 4rem 2rem;
@@ -330,14 +378,38 @@ export default function Home() {
                   key={id}
                   className="session-row"
                   style={{ animationDelay: `${i * 40}ms` }}
-                  onClick={() => router.push(`/session?session_id=${id}`)}
                 >
                   <span className="session-index">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="session-id">
+                  <span
+                    className="session-id"
+                    style={{ cursor: "pointer", flex: 1 }}
+                    onClick={() => router.push(`/session?session_id=${id}`)}
+                  >
                     <span className="prefix">{id.slice(0, 8)}</span>
                     {id.slice(8)}
                   </span>
-                  <span className="session-arrow">→</span>
+                  <span
+                    className="session-arrow"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => router.push(`/session?session_id=${id}`)}
+                  >→</span>
+                  <button
+                    className="session-delete"
+                    disabled={deletingId === id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteId(id);
+                    }}
+                    aria-label={`Delete session ${id}`}
+                  >
+                    {deletingId === id ? (
+                      <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)", borderTopColor: "#f87171" }} />
+                    ) : (
+                      <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                        <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </button>
                 </div>
               ))}
             </div>
@@ -346,6 +418,38 @@ export default function Home() {
           <div className="footer-line">// go-sandbox · {new Date().getFullYear()}</div>
         </div>
       </div>
+
+      <Dialog open={confirmDeleteId !== null} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Delete session</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete session{" "}
+            <span className="font-mono text-foreground">{confirmDeleteId?.slice(0, 8)}…</span>?
+            This will permanently remove all files.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deletingId === confirmDeleteId}
+              onClick={() => {
+                if (!confirmDeleteId) return;
+                const id = confirmDeleteId;
+                setConfirmDeleteId(null);
+                setDeletingId(id);
+                deleteSession(id).finally(() => setDeletingId(null));
+              }}
+            >
+              {deletingId === confirmDeleteId ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -61,6 +61,7 @@ interface FileSystemProps {
   activeFile?: string;
   onFileSelect?: (file: string) => void;
   onAddFile?: (file: string) => void;
+  onDeleteFile?: (file: string) => void;
 }
 
 export default function FileSystem({
@@ -68,9 +69,11 @@ export default function FileSystem({
   activeFile,
   onFileSelect,
   onAddFile,
+  onDeleteFile,
 }: FileSystemProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   function handleCreate() {
     const name = input.trim();
@@ -139,22 +142,63 @@ export default function FileSystem({
           const isActive = filename === activeFile;
           return (
             <li key={filename}>
-              <button
-                onClick={() => onFileSelect?.(filename)}
+              <div
                 className={[
-                  "w-full flex items-center gap-2 px-3 py-[5px] text-left group transition-colors duration-75",
+                  "w-full flex items-center gap-2 px-3 py-[5px] group transition-colors duration-75",
                   isActive
                     ? "bg-[#37373d] text-[#d4d4d4]"
                     : "text-[#858585] hover:bg-[#2a2d2e] hover:text-[#cccccc]",
                 ].join(" ")}
               >
-                <FileIcon ext={ext} />
-                <span className="text-xs font-mono truncate">{filename}</span>
-              </button>
+                <button
+                  onClick={() => onFileSelect?.(filename)}
+                  className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                >
+                  <FileIcon ext={ext} />
+                  <span className="text-xs font-mono truncate">{filename}</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteTarget(filename); }}
+                  className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-4 h-4 rounded text-[#6b6b6b] hover:text-red-400 hover:bg-[#3a2020] transition-all duration-75 shrink-0"
+                  aria-label={`Delete ${filename}`}
+                >
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
             </li>
           );
         })}
       </ul>
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Delete file</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete{" "}
+            <span className="font-mono text-foreground">{deleteTarget}</span>?
+            This cannot be undone.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (deleteTarget) onDeleteFile?.(deleteTarget);
+                setDeleteTarget(null);
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
