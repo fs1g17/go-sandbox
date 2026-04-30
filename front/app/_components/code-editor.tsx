@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { editor } from "monaco-editor";
 import { Doc } from "yjs";
-import { WebrtcProvider } from "y-webrtc";
-import { MonacoBinding } from "y-monaco";
-import FileSystem from "./file-system";
+import { editor } from "monaco-editor";
 import { CodeExecutor } from "../page";
+import FileSystem from "./file-system";
+import { MonacoBinding } from "y-monaco";
+import { WebrtcProvider } from "y-webrtc";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export interface CodeEditorHandle {
   getValue: () => string;
@@ -19,14 +19,15 @@ export default function CodeEditor({
   ref: React.Ref<CodeEditorHandle>;
   codeRef: React.Ref<CodeExecutor>;
 }) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const yDocRef = useRef<Doc>(null);
   const providerRef = useRef<WebrtcProvider>(null);
-  const modelsRef = useRef<Map<string, editor.ITextModel>>(new Map());
   const bindingsRef = useRef<Map<string, MonacoBinding>>(new Map());
+  const modelsRef = useRef<Map<string, editor.ITextModel>>(new Map());
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   const [files, setFiles] = useState<string[]>([]);
   const [activeFile, setActiveFile] = useState<string>();
+
   useImperativeHandle(ref, () => ({
     getValue: () => editorRef.current?.getValue() ?? "",
   }));
@@ -72,7 +73,6 @@ export default function CodeEditor({
       const yFiles = yDocRef.current.getArray<string>("files");
       const yState = yDocRef.current.getMap("state");
 
-      // Register observers exactly once
       yFiles.observe(() => setFiles(yFiles.toArray()));
       yState.observe(() => {
         const af = yState.get("activeFile") as string | undefined;
