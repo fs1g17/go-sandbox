@@ -34,17 +34,26 @@ interface SessionFilesResponse {
 }
 
 export async function getSessionFiles(
-  sessionId: string
+  sessionId: string,
 ): Promise<SessionFilesResponse> {
   const response = await axiosInstance.get<SessionFilesResponse>(
     `/session-files`,
-    { params: { session_id: sessionId } }
+    { params: { session_id: sessionId } },
   );
   return response.data;
 }
 
 export async function executeCode(
-  files: Record<string, string>
+  files: Record<string, string>,
 ): Promise<void> {
   await axiosInstance.post("/execute", { files });
+}
+
+export async function deleteFile(
+  sessionId: string,
+  name: string,
+): Promise<void> {
+  await axiosInstance.delete("/file", {
+    data: { session_id: sessionId, name },
+  });
 }
