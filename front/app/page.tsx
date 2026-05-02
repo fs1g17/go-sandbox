@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -10,16 +10,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { clientEnv } from "@/clientEnv";
-import { useQuery } from "@tanstack/react-query";
-import { getSessions } from "@/api/sessions";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { createSession, deleteSession, getSessions } from "@/api/sessions";
 
 export default function Home() {
   const router = useRouter();
-  const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const {
     data: sessions,
@@ -30,30 +26,15 @@ export default function Home() {
     queryFn: getSessions,
   });
 
-  async function deleteSession(id: string) {
-    try {
-      await fetch(`${clientEnv.API_BASE}/session`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: id }),
-      });
-      await refetchSessions();
-    } catch {
-      setError("Failed to delete session.");
-    }
-  }
+  const deleteMutation = useMutation({
+    mutationFn: deleteSession,
+    onSuccess: () => refetchSessions(),
+  });
 
-  async function createSession() {
-    setCreating(true);
-    try {
-      const res = await fetch(`${clientEnv.API_BASE}/new-session`);
-      const data = await res.json();
-      router.push(`/session?session_id=${data.session_id}`);
-    } catch {
-      setError("Failed to create session.");
-      setCreating(false);
-    }
-  }
+  const createMutation = useMutation({
+    mutationFn: createSession,
+    onSuccess: (data) => router.push(`/session?session_id=${data.session_id}`),
+  });
 
   return (
     <>
@@ -354,14 +335,22 @@ export default function Home() {
             </div>
             <button
               className="new-btn"
-              onClick={createSession}
-              disabled={creating}
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
             >
-              {creating ? <span className="spinner" /> : "+"} new session
+              {createMutation.isPending ? <span className="spinner" /> : "+"}{" "}
+              new session
             </button>
           </div>
 
-          {error && <div className="error-state">! {error}</div>}
+          {(deleteMutation.isError || createMutation.isError) && (
+            <div className="error-state">
+              !{" "}
+              {deleteMutation.isError
+                ? "Failed to delete session."
+                : "Failed to create session."}
+            </div>
+          )}
 
           {loading ? (
             <div className="session-list">
@@ -402,14 +391,18 @@ export default function Home() {
                   </span>
                   <button
                     className="session-delete"
-                    disabled={deletingId === id}
+                    disabled={
+                      deleteMutation.isPending &&
+                      deleteMutation.variables === id
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
                       setConfirmDeleteId(id);
                     }}
                     aria-label={`Delete session ${id}`}
                   >
-                    {deletingId === id ? (
+                    {deleteMutation.isPending &&
+                    deleteMutation.variables === id ? (
                       <span
                         className="spinner"
                         style={{
@@ -468,16 +461,15 @@ export default function Home() {
             <Button
               variant="destructive"
               size="sm"
-              disabled={deletingId === confirmDeleteId}
+              disabled={deleteMutation.isPending}
               onClick={() => {
                 if (!confirmDeleteId) return;
                 const id = confirmDeleteId;
                 setConfirmDeleteId(null);
-                setDeletingId(id);
-                deleteSession(id).finally(() => setDeletingId(null));
+                deleteMutation.mutate(id);
               }}
             >
-              {deletingId === confirmDeleteId ? "Deleting…" : "Delete"}
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
