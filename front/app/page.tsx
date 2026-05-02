@@ -11,27 +11,24 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { clientEnv } from "@/clientEnv";
+import { useQuery } from "@tanstack/react-query";
+import { getSessions } from "@/api/sessions";
 
 export default function Home() {
   const router = useRouter();
-  const [sessions, setSessions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function fetchSessions() {
-    try {
-      const res = await fetch(`${clientEnv.API_BASE}/sessions`);
-      const data = await res.json();
-      setSessions(data.session_ids ?? []);
-    } catch {
-      setError("Failed to reach backend.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const {
+    data: sessions,
+    refetch: refetchSessions,
+    isLoading: loading,
+  } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: getSessions,
+  });
 
   async function deleteSession(id: string) {
     try {
@@ -40,7 +37,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: id }),
       });
-      await fetchSessions();
+      await refetchSessions();
     } catch {
       setError("Failed to delete session.");
     }
@@ -57,10 +54,6 @@ export default function Home() {
       setCreating(false);
     }
   }
-
-  useEffect(() => {
-    fetchSessions();
-  }, []);
 
   return (
     <>
@@ -354,8 +347,8 @@ export default function Home() {
                 "loading..."
               ) : (
                 <>
-                  <span>{sessions.length}</span> session
-                  {sessions.length !== 1 ? "s" : ""}
+                  <span>{sessions?.session_ids.length}</span> session
+                  {sessions?.session_ids.length !== 1 ? "s" : ""}
                 </>
               )}
             </div>
@@ -376,14 +369,14 @@ export default function Home() {
               <div className="skeleton-row" />
               <div className="skeleton-row" />
             </div>
-          ) : sessions.length === 0 ? (
+          ) : sessions?.session_ids.length === 0 ? (
             <div className="empty-state">
               <div className="glyph">▭</div>
               <p>no sessions yet — create one to start</p>
             </div>
           ) : (
             <div className="session-list">
-              {sessions.map((id, i) => (
+              {sessions?.session_ids.map((id, i) => (
                 <div
                   key={id}
                   className="session-row"
