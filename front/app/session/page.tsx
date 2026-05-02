@@ -3,11 +3,10 @@
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CodeEditorHandle } from "./_components/code-editor";
 import Terminal, { TerminalLine } from "./_components/terminal";
-import { clientEnv } from "@/clientEnv";
-import { getSessionFiles } from "@/api/sessions";
+import { executeCode, getSessionFiles } from "@/api/sessions";
 
 const CodeEditor = dynamic(() => import("./_components/code-editor"), {
   ssr: false,
@@ -26,7 +25,6 @@ export default function Home() {
   const [lines, setLines] = useState<TerminalLine[]>([
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
-  const [running, setRunning] = useState(false);
 
   const {
     data: sessionFiles,
@@ -42,28 +40,25 @@ export default function Home() {
     setLines((prev) => [...prev, ...newLines]);
   }
 
+  const { mutate: run, isPending: running } = useMutation({
+    mutationFn: (codeMap: Record<string, string>) => executeCode(codeMap),
+    onError: (err) => {
+      setLines((prev) => [
+        ...prev,
+        { text: `Failed to reach backend: ${err}`, type: "error" },
+      ]);
+    },
+  });
+
   async function handleRun() {
-    setRunning(true);
     setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
 
     const codeMap = codeRef.current?.getCodeMap();
 
     console.log(codeMap);
 
-    try {
-      await fetch(`${clientEnv.API_BASE}/execute`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: codeMap }),
-      });
-    } catch (err) {
-      setLines((prev) => [
-        ...prev,
-        { text: `Failed to reach backend: ${err}`, type: "error" },
-      ]);
-    } finally {
-      setRunning(false);
-    }
+    if (!codeMap) return;
+    run(codeMap);
   }
 
   if (sessionError || !sessionId) {

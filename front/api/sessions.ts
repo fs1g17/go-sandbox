@@ -42,3 +42,9 @@ export async function getSessionFiles(
   );
   return response.data;
 }
+
+export async function executeCode(
+  files: Record<string, string>
+): Promise<void> {
+  await axiosInstance.post("/execute", { files });
+}
