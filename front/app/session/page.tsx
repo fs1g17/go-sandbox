@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
 import type { CodeEditorHandle } from "./_components/code-editor";
 import Terminal, { TerminalLine } from "./_components/terminal";
 import { clientEnv } from "@/clientEnv";
+import { getSessionFiles } from "@/api/sessions";
 
 const CodeEditor = dynamic(() => import("./_components/code-editor"), {
   ssr: false,
@@ -25,22 +27,16 @@ export default function Home() {
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
   const [running, setRunning] = useState(false);
-  const [initialFiles, setInitialFiles] = useState<Record<
-    string,
-    string
-  > | null>(null);
-  const [sessionError, setSessionError] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (!sessionId) return;
-    fetch(`${clientEnv.API_BASE}/session-files?session_id=${sessionId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json();
-      })
-      .then((data) => setInitialFiles(data.fileMap ?? {}))
-      .catch(() => setSessionError(true));
-  }, [sessionId]);
+  const {
+    data: sessionFiles,
+    isLoading: sessionLoading,
+    isError: sessionError,
+  } = useQuery({
+    queryKey: ["session-files", sessionId],
+    queryFn: () => getSessionFiles(sessionId),
+    enabled: !!sessionId,
+  });
 
   function addLines(newLines: TerminalLine[]) {
     setLines((prev) => [...prev, ...newLines]);
@@ -70,7 +66,7 @@ export default function Home() {
     }
   }
 
-  if (sessionError) {
+  if (sessionError || !sessionId) {
     return (
       <div className="h-full flex items-center justify-center bg-[#1e1e1e]">
         <div className="flex flex-col items-center gap-4 max-w-sm text-center">
@@ -104,7 +100,7 @@ export default function Home() {
     );
   }
 
-  if (initialFiles === null) {
+  if (sessionLoading || !sessionFiles) {
     return (
       <div className="h-full flex items-center justify-center bg-[#1e1e1e]">
         <span className="text-xs font-mono text-[#555]">loading session…</span>
@@ -117,7 +113,7 @@ export default function Home() {
       <CodeEditor
         ref={editorRef}
         codeRef={codeRef}
-        initialFiles={initialFiles}
+        initialFiles={sessionFiles.fileMap}
         sessionId={sessionId}
       />
       <Terminal

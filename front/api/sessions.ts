@@ -28,3 +28,17 @@ export async function createSession(): Promise<NewSessionResponse> {
   const response = await axiosInstance.get<NewSessionResponse>("/new-session");
   return response.data;
 }
+
+interface SessionFilesResponse {
+  fileMap: Record<string, string>;
+}
+
+export async function getSessionFiles(
+  sessionId: string
+): Promise<SessionFilesResponse> {
+  const response = await axiosInstance.get<SessionFilesResponse>(
+    `/session-files`,
+    { params: { session_id: sessionId } }
+  );
+  return response.data;
+}
