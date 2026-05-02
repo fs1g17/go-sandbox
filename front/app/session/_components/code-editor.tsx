@@ -71,7 +71,8 @@ export default function CodeEditor({
       name: string;
       activeFileName?: string;
     }) => deleteFile(sessionId, name),
-    onSuccess: (_, { name, activeFileName }) => {
+    onSettled: (_, _2, { name, activeFileName }) => {
+      console.log("deleted file successfully");
       const yFiles = yDocRef.current?.getArray<string>("files");
       if (yFiles) {
         const idx = yFiles.toArray().indexOf(name);
