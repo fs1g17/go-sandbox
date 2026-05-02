@@ -5,13 +5,11 @@ import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { CodeEditorHandle } from "./_components/code-editor";
 import Terminal, { TerminalLine } from "./_components/terminal";
+import { clientEnv } from "@/clientEnv";
 
 const CodeEditor = dynamic(() => import("./_components/code-editor"), {
   ssr: false,
 });
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export interface CodeExecutor {
   getCodeMap: () => { [key: string]: string };
@@ -35,7 +33,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!sessionId) return;
-    fetch(`${API_BASE}/session-files?session_id=${sessionId}`)
+    fetch(`${clientEnv.API_BASE}/session-files?session_id=${sessionId}`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.json();
@@ -54,8 +52,10 @@ export default function Home() {
 
     const codeMap = codeRef.current?.getCodeMap();
 
+    console.log(codeMap);
+
     try {
-      await fetch(`${API_BASE}/execute`, {
+      await fetch(`${clientEnv.API_BASE}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files: codeMap }),
