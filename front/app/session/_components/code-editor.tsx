@@ -6,7 +6,13 @@ import { CodeExecutor } from "../page";
 import FileSystem from "./file-system";
 import { MonacoBinding } from "y-monaco";
 import { WebsocketProvider } from "y-websocket";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { deleteFile } from "@/api/sessions";
 import { useMutation } from "@tanstack/react-query";
 
@@ -95,6 +101,19 @@ export default function CodeEditor({
     },
   });
 
+  const createModelBinding = useCallback((activeFile: string) => {
+    const model = editor.createModel("", "go");
+    const yText = yDocRef.current!.getText(activeFile);
+    const binding = new MonacoBinding(
+      yText,
+      model,
+      new Set([editorRef.current!]),
+      providerRef.current!.awareness,
+    );
+    modelsRef.current.set(activeFile, model);
+    bindingsRef.current.set(activeFile, binding);
+  }, []);
+
   useEffect(() => {
     const monacoEditorDiv = document.getElementById("monaco-editor");
     if (!monacoEditorDiv) return;
@@ -115,7 +134,18 @@ export default function CodeEditor({
       const yFiles = yDocRef.current.getArray<string>("files");
       const yState = yDocRef.current.getMap("state");
 
-      yFiles.observe(() => setFiles(yFiles.toArray()));
+      yFiles.observe(() => {
+        const updatedFileNames = yFiles.toArray();
+        setFiles(updatedFileNames);
+        // create models and bindings for each file name
+
+        // filter out the new ones
+        const newFileNames = updatedFileNames.filter(
+          (updatedFileName) => !modelsRef.current.has(updatedFileName),
+        );
+        // create models for each
+        newFileNames.forEach(createModelBinding);
+      });
       yState.observe(() => {
         const af = yState.get("activeFile") as string | undefined;
         if (af) setActiveFile(af);
@@ -130,17 +160,9 @@ export default function CodeEditor({
 
     if (!activeFile) return;
 
+    // if the user created a new file
     if (!modelsRef.current.has(activeFile)) {
-      const model = editor.createModel("", "go");
-      const yText = yDocRef.current.getText(activeFile);
-      const binding = new MonacoBinding(
-        yText,
-        model,
-        new Set([editorRef.current!]),
-        providerRef.current!.awareness,
-      );
-      modelsRef.current.set(activeFile, model);
-      bindingsRef.current.set(activeFile, binding);
+      createModelBinding(activeFile);
     }
 
     editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
