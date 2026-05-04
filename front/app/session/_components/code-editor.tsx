@@ -154,10 +154,30 @@ export default function CodeEditor({
       setFiles(yFiles.toArray());
       const af = yState.get("activeFile") as string | undefined;
       if (af) setActiveFile(af);
-
-      return;
     }
 
+    return () => {
+      // tear everything down
+      // provider, bindings, models, yDoc
+      bindingsRef.current.forEach((binging) => binging.destroy());
+      modelsRef.current.forEach((model) => model.dispose());
+      editorRef.current?.dispose();
+      providerRef.current?.disconnect();
+      providerRef.current?.destroy();
+      yDocRef.current?.destroy();
+
+      bindingsRef.current = new Map();
+      modelsRef.current = new Map();
+      editorRef.current = null;
+      providerRef.current = null;
+      yDocRef.current = null;
+
+      setActiveFile(undefined);
+      setFiles([]);
+    };
+  }, [sessionId, createModelBinding]);
+
+  useEffect(() => {
     if (!activeFile) return;
 
     // if the user created a new file
@@ -166,11 +186,7 @@ export default function CodeEditor({
     }
 
     editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
-
-    return () => {
-      // TODO: implement the cleanup of all resources
-    };
-  }, [activeFile, sessionId]);
+  }, [activeFile, createModelBinding]);
 
   return (
     <div className="flex flex-1 min-h-0">
