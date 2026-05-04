@@ -24,7 +24,7 @@ setPersistence({
     // here so you can persist updates incrementally as they happen, rather
     // than only on shutdown.
 
-    console.log("FETCHING FILES");
+    console.log("FETCHING FILES for: " + docName);
     const filesArray = ydoc.getArray("files");
     const state = ydoc.getMap("state");
 
@@ -51,6 +51,8 @@ setPersistence({
   writeState: async (docName, ydoc) => {
     // Called when the last connected client disconnects from this document
     // (i.e. the session is closing). Flush / persist any remaining state.
+
+    console.log("writeState: " + docName);
   },
 });
 

@@ -45,8 +45,9 @@ export async function getSessionFiles(
 
 export async function executeCode(
   files: Record<string, string>,
+  session_id: string,
 ): Promise<void> {
-  await axiosInstance.post("/execute", { files });
+  await axiosInstance.post("/execute", { files, session_id });
 }
 
 export async function deleteFile(

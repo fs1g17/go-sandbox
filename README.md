@@ -35,3 +35,9 @@ Navigate to `http://localhost:3000` and check it out
 ### Resoureces:
 
 [Tutorial](https://how2.sh/posts/how-to-build-ai-code-execution-sandbox)
+
+### TODO:
+
+- Go backend doesn't write to sessions correctly (when calling /execute)
+
+- generally test that sessions do indeed work

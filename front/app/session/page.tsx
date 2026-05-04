@@ -31,7 +31,8 @@ export default function Home() {
   }
 
   const { mutate: run, isPending: running } = useMutation({
-    mutationFn: (codeMap: Record<string, string>) => executeCode(codeMap),
+    mutationFn: (codeMap: Record<string, string>) =>
+      executeCode(codeMap, sessionId),
     onError: (err) => {
       setLines((prev) => [
         ...prev,
