@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -10,58 +10,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { createSession, deleteSession, getSessions } from "@/api/sessions";
 
 export default function Home() {
   const router = useRouter();
-  const [sessions, setSessions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  async function fetchSessions() {
-    try {
-      const res = await fetch(`${API_BASE}/sessions`);
-      const data = await res.json();
-      setSessions(data.session_ids ?? []);
-    } catch {
-      setError("Failed to reach backend.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const {
+    data: sessions,
+    refetch: refetchSessions,
+    isLoading: loading,
+  } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: getSessions,
+  });
 
-  async function deleteSession(id: string) {
-    try {
-      await fetch(`${API_BASE}/session`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: id }),
-      });
-      await fetchSessions();
-    } catch {
-      setError("Failed to delete session.");
-    }
-  }
+  const deleteMutation = useMutation({
+    mutationFn: deleteSession,
+    onSuccess: () => refetchSessions(),
+  });
 
-  async function createSession() {
-    setCreating(true);
-    try {
-      const res = await fetch(`${API_BASE}/new-session`);
-      const data = await res.json();
-      router.push(`/session?session_id=${data.session_id}`);
-    } catch {
-      setError("Failed to create session.");
-      setCreating(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchSessions();
-  }, []);
+  const createMutation = useMutation({
+    mutationFn: createSession,
+    onSuccess: (data) => router.push(`/session?session_id=${data.session_id}`),
+  });
 
   return (
     <>
@@ -351,14 +324,33 @@ export default function Home() {
 
           <div className="toolbar">
             <div className="count-badge">
-              {loading ? "loading..." : <><span>{sessions.length}</span> session{sessions.length !== 1 ? "s" : ""}</>}
+              {loading ? (
+                "loading..."
+              ) : (
+                <>
+                  <span>{sessions?.session_ids.length}</span> session
+                  {sessions?.session_ids.length !== 1 ? "s" : ""}
+                </>
+              )}
             </div>
-            <button className="new-btn" onClick={createSession} disabled={creating}>
-              {creating ? <span className="spinner" /> : "+"} new session
+            <button
+              className="new-btn"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? <span className="spinner" /> : "+"}{" "}
+              new session
             </button>
           </div>
 
-          {error && <div className="error-state">! {error}</div>}
+          {(deleteMutation.isError || createMutation.isError) && (
+            <div className="error-state">
+              !{" "}
+              {deleteMutation.isError
+                ? "Failed to delete session."
+                : "Failed to create session."}
+            </div>
+          )}
 
           {loading ? (
             <div className="session-list">
@@ -366,20 +358,22 @@ export default function Home() {
               <div className="skeleton-row" />
               <div className="skeleton-row" />
             </div>
-          ) : sessions.length === 0 ? (
+          ) : sessions?.session_ids.length === 0 ? (
             <div className="empty-state">
               <div className="glyph">▭</div>
               <p>no sessions yet — create one to start</p>
             </div>
           ) : (
             <div className="session-list">
-              {sessions.map((id, i) => (
+              {sessions?.session_ids.map((id, i) => (
                 <div
                   key={id}
                   className="session-row"
                   style={{ animationDelay: `${i * 40}ms` }}
                 >
-                  <span className="session-index">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="session-index">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
                   <span
                     className="session-id"
                     style={{ cursor: "pointer", flex: 1 }}
@@ -392,21 +386,41 @@ export default function Home() {
                     className="session-arrow"
                     style={{ cursor: "pointer" }}
                     onClick={() => router.push(`/session?session_id=${id}`)}
-                  >→</span>
+                  >
+                    →
+                  </span>
                   <button
                     className="session-delete"
-                    disabled={deletingId === id}
+                    disabled={
+                      deleteMutation.isPending &&
+                      deleteMutation.variables === id
+                    }
                     onClick={(e) => {
                       e.stopPropagation();
                       setConfirmDeleteId(id);
                     }}
                     aria-label={`Delete session ${id}`}
                   >
-                    {deletingId === id ? (
-                      <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)", borderTopColor: "#f87171" }} />
+                    {deleteMutation.isPending &&
+                    deleteMutation.variables === id ? (
+                      <span
+                        className="spinner"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderWidth: 1.5,
+                          borderColor: "rgba(255,255,255,0.15)",
+                          borderTopColor: "#f87171",
+                        }}
+                      />
                     ) : (
                       <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                        <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <path
+                          d="M1.5 1.5l6 6M7.5 1.5l-6 6"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        />
                       </svg>
                     )}
                   </button>
@@ -415,37 +429,47 @@ export default function Home() {
             </div>
           )}
 
-          <div className="footer-line">// go-sandbox · {new Date().getFullYear()}</div>
+          <div className="footer-line">
+            // go-sandbox · {new Date().getFullYear()}
+          </div>
         </div>
       </div>
 
-      <Dialog open={confirmDeleteId !== null} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
+      <Dialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteId(null)}
+      >
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
             <DialogTitle>Delete session</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete session{" "}
-            <span className="font-mono text-foreground">{confirmDeleteId?.slice(0, 8)}…</span>?
-            This will permanently remove all files.
+            <span className="font-mono text-foreground">
+              {confirmDeleteId?.slice(0, 8)}…
+            </span>
+            ? This will permanently remove all files.
           </p>
           <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDeleteId(null)}
+            >
               Cancel
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              disabled={deletingId === confirmDeleteId}
+              disabled={deleteMutation.isPending}
               onClick={() => {
                 if (!confirmDeleteId) return;
                 const id = confirmDeleteId;
                 setConfirmDeleteId(null);
-                setDeletingId(id);
-                deleteSession(id).finally(() => setDeletingId(null));
+                deleteMutation.mutate(id);
               }}
             >
-              {deletingId === confirmDeleteId ? "Deleting…" : "Delete"}
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

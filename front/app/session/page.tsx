@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CodeEditorHandle } from "./_components/code-editor";
 import Terminal, { TerminalLine } from "./_components/terminal";
+import { executeCode, getSessionFiles } from "@/api/sessions";
 
 const CodeEditor = dynamic(() => import("./_components/code-editor"), {
   ssr: false,
 });
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 export interface CodeExecutor {
   getCodeMap: () => { [key: string]: string };
@@ -26,51 +25,43 @@ export default function Home() {
   const [lines, setLines] = useState<TerminalLine[]>([
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
-  const [running, setRunning] = useState(false);
-  const [initialFiles, setInitialFiles] = useState<Record<
-    string,
-    string
-  > | null>(null);
-  const [sessionError, setSessionError] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (!sessionId) return;
-    fetch(`${API_BASE}/session-files?session_id=${sessionId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json();
-      })
-      .then((data) => setInitialFiles(data.fileMap ?? {}))
-      .catch(() => setSessionError(true));
-  }, [sessionId]);
+  const {
+    data: sessionFiles,
+    isLoading: sessionLoading,
+    isError: sessionError,
+  } = useQuery({
+    queryKey: ["session-files", sessionId],
+    queryFn: () => getSessionFiles(sessionId),
+    enabled: !!sessionId,
+  });
 
   function addLines(newLines: TerminalLine[]) {
     setLines((prev) => [...prev, ...newLines]);
   }
 
-  async function handleRun() {
-    setRunning(true);
-    setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
-
-    const codeMap = codeRef.current?.getCodeMap();
-
-    try {
-      await fetch(`${API_BASE}/execute`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: codeMap }),
-      });
-    } catch (err) {
+  const { mutate: run, isPending: running } = useMutation({
+    mutationFn: (codeMap: Record<string, string>) => executeCode(codeMap),
+    onError: (err) => {
       setLines((prev) => [
         ...prev,
         { text: `Failed to reach backend: ${err}`, type: "error" },
       ]);
-    } finally {
-      setRunning(false);
-    }
+    },
+  });
+
+  async function handleRun() {
+    setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
+
+    const codeMap = codeRef.current?.getCodeMap();
+
+    console.log(codeMap);
+
+    if (!codeMap) return;
+    run(codeMap);
   }
 
-  if (sessionError) {
+  if (sessionError || !sessionId) {
     return (
       <div className="h-full flex items-center justify-center bg-[#1e1e1e]">
         <div className="flex flex-col items-center gap-4 max-w-sm text-center">
@@ -104,7 +95,7 @@ export default function Home() {
     );
   }
 
-  if (initialFiles === null) {
+  if (sessionLoading || !sessionFiles) {
     return (
       <div className="h-full flex items-center justify-center bg-[#1e1e1e]">
         <span className="text-xs font-mono text-[#555]">loading session…</span>
@@ -117,7 +108,7 @@ export default function Home() {
       <CodeEditor
         ref={editorRef}
         codeRef={codeRef}
-        initialFiles={initialFiles}
+        initialFiles={sessionFiles.fileMap}
         sessionId={sessionId}
       />
       <Terminal
