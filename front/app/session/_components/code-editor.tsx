@@ -5,7 +5,7 @@ import { editor } from "monaco-editor";
 import { CodeExecutor } from "../page";
 import FileSystem from "./file-system";
 import { MonacoBinding } from "y-monaco";
-import { WebrtcProvider } from "y-webrtc";
+import { WebsocketProvider } from "y-websocket";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { deleteFile } from "@/api/sessions";
 import { useMutation } from "@tanstack/react-query";
@@ -17,16 +17,14 @@ export interface CodeEditorHandle {
 export default function CodeEditor({
   ref,
   codeRef,
-  initialFiles = {},
   sessionId = "",
 }: {
   ref: React.Ref<CodeEditorHandle>;
   codeRef: React.Ref<CodeExecutor>;
-  initialFiles?: Record<string, string>;
   sessionId?: string;
 }) {
   const yDocRef = useRef<Doc>(null);
-  const providerRef = useRef<WebrtcProvider>(null);
+  const providerRef = useRef<WebsocketProvider>(null);
   const bindingsRef = useRef<Map<string, MonacoBinding>>(new Map());
   const modelsRef = useRef<Map<string, editor.ITextModel>>(new Map());
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -103,7 +101,11 @@ export default function CodeEditor({
 
     if (!yDocRef.current) {
       yDocRef.current = new Doc();
-      providerRef.current = new WebrtcProvider("monaco", yDocRef.current);
+      providerRef.current = new WebsocketProvider(
+        "ws://localhost:1234",
+        sessionId,
+        yDocRef.current,
+      );
       editorRef.current = editor.create(monacoEditorDiv, {
         value: "",
         language: "go",
@@ -118,30 +120,6 @@ export default function CodeEditor({
         const af = yState.get("activeFile") as string | undefined;
         if (af) setActiveFile(af);
       });
-
-      // Wait for WebRTC peer discovery before deciding whether to seed.
-      // awareness.getStates() includes the local client, so size > 1 means
-      // another peer is already in the room and will sync state — skip seeding.
-      setTimeout(() => {
-        const peers = providerRef.current!.awareness.getStates().size;
-        if (
-          peers <= 1 &&
-          yFiles.length === 0 &&
-          Object.keys(initialFiles).length > 0
-        ) {
-          yDocRef.current!.transact(() => {
-            const names = Object.keys(initialFiles);
-            yFiles.push(names);
-            names.forEach((name) => {
-              const yText = yDocRef.current!.getText(name);
-              if (yText.length === 0 && initialFiles[name]) {
-                yText.insert(0, initialFiles[name]);
-              }
-            });
-          });
-          yState.set("activeFile", Object.keys(initialFiles)[0]);
-        }
-      }, 500);
 
       setFiles(yFiles.toArray());
       const af = yState.get("activeFile") as string | undefined;
@@ -166,7 +144,11 @@ export default function CodeEditor({
     }
 
     editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
-  }, [activeFile]);
+
+    return () => {
+      // TODO: implement the cleanup of all resources
+    };
+  }, [activeFile, sessionId]);
 
   return (
     <div className="flex flex-1 min-h-0">

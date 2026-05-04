@@ -26,16 +26,6 @@ export default function Home() {
     { text: "Ready. Press Run to execute.", type: "info" },
   ]);
 
-  const {
-    data: sessionFiles,
-    isLoading: sessionLoading,
-    isError: sessionError,
-  } = useQuery({
-    queryKey: ["session-files", sessionId],
-    queryFn: () => getSessionFiles(sessionId),
-    enabled: !!sessionId,
-  });
-
   function addLines(newLines: TerminalLine[]) {
     setLines((prev) => [...prev, ...newLines]);
   }
@@ -61,56 +51,9 @@ export default function Home() {
     run(codeMap);
   }
 
-  if (sessionError || !sessionId) {
-    return (
-      <div className="h-full flex items-center justify-center bg-[#1e1e1e]">
-        <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-          <div className="w-10 h-10 rounded-full border border-red-800 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M8 3v5M8 11v1"
-                stroke="#f87171"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <div className="space-y-1">
-            <p className="text-sm font-mono text-[#d4d4d4]">
-              Session not found
-            </p>
-            <p className="text-xs font-mono text-[#555]">
-              <span className="text-[#3a3a3a]">id: </span>
-              <span className="text-[#6b6b6b]">{sessionId}</span>
-            </p>
-          </div>
-          <a
-            href="/"
-            className="text-xs font-mono text-[#555] hover:text-[#f59e0b] transition-colors underline underline-offset-4"
-          >
-            ← back to sessions
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  if (sessionLoading || !sessionFiles) {
-    return (
-      <div className="h-full flex items-center justify-center bg-[#1e1e1e]">
-        <span className="text-xs font-mono text-[#555]">loading session…</span>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
-      <CodeEditor
-        ref={editorRef}
-        codeRef={codeRef}
-        initialFiles={sessionFiles.fileMap}
-        sessionId={sessionId}
-      />
+      <CodeEditor ref={editorRef} codeRef={codeRef} sessionId={sessionId} />
       <Terminal
         lines={lines}
         running={running}
