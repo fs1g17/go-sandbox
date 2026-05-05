@@ -47,3 +47,5 @@ Navigate to `http://localhost:3000` and check it out
   - in yjs websocket server, I could initialise state with "error", and check for that, but that doesn't feel as clean
 
 deleting files - currently they're only ever written, so maybe clear all the folder contents before running?
+
+in the nodejs backend, update it to write on close
