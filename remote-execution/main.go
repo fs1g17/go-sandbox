@@ -68,7 +68,7 @@ func main() {
 			}
 		}
 
-		run(hub)
+		run(hub, req.SessionID)
 
 		return c.String(http.StatusOK, "ok")
 	})
