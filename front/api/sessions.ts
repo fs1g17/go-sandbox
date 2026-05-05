@@ -49,12 +49,3 @@ export async function executeCode(
 ): Promise<void> {
   await axiosInstance.post("/execute", { files, session_id });
 }
-
-export async function deleteFile(
-  sessionId: string,
-  name: string,
-): Promise<void> {
-  await axiosInstance.delete("/file", {
-    data: { session_id: sessionId, name },
-  });
-}

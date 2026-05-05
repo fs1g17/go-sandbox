@@ -48,4 +48,5 @@ Navigate to `http://localhost:3000` and check it out
 
 deleting files - currently they're only ever written, so maybe clear all the folder contents before running?
 
-in the nodejs backend, update it to write on close
+- in the nodejs backend, update it to write on close
+- set "running" state in yjs (make sure to clear it later!)

@@ -13,8 +13,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { deleteFile } from "@/api/sessions";
-import { useMutation } from "@tanstack/react-query";
 
 export interface CodeEditorHandle {
   getValue: () => string;
@@ -67,39 +65,29 @@ export default function CodeEditor({
     setSharedActiveFile(name);
   }
 
-  const { mutate: handleDeleteFile } = useMutation({
-    mutationFn: ({
-      name,
-      activeFileName,
-    }: {
-      name: string;
-      activeFileName?: string;
-    }) => deleteFile(sessionId, name),
-    onSettled: (_, _2, { name, activeFileName }) => {
-      console.log("deleted file successfully");
-      const yFiles = yDocRef.current?.getArray<string>("files");
-      if (yFiles) {
-        const idx = yFiles.toArray().indexOf(name);
-        if (idx !== -1) yFiles.delete(idx, 1);
-      }
+  function handleDeleteFile(name: string) {
+    const yFiles = yDocRef.current?.getArray<string>("files");
+    if (yFiles) {
+      const idx = yFiles.toArray().indexOf(name);
+      if (idx !== -1) yFiles.delete(idx, 1);
+    }
 
-      bindingsRef.current.get(name)?.destroy();
-      bindingsRef.current.delete(name);
-      modelsRef.current.get(name)?.dispose();
-      modelsRef.current.delete(name);
+    bindingsRef.current.get(name)?.destroy();
+    bindingsRef.current.delete(name);
+    modelsRef.current.get(name)?.dispose();
+    modelsRef.current.delete(name);
 
-      if (activeFileName === name) {
-        const remaining =
-          yDocRef.current?.getArray<string>("files").toArray() ?? [];
-        if (remaining.length > 0) {
-          setSharedActiveFile(remaining[0]);
-        } else {
-          editorRef.current?.setModel(null);
-          setActiveFile(undefined);
-        }
+    if (activeFile === name) {
+      const remaining =
+        yDocRef.current?.getArray<string>("files").toArray() ?? [];
+      if (remaining.length > 0) {
+        setSharedActiveFile(remaining[0]);
+      } else {
+        editorRef.current?.setModel(null);
+        setActiveFile(undefined);
       }
-    },
-  });
+    }
+  }
 
   const createModelBinding = useCallback((activeFile: string) => {
     const model = editor.createModel("", "go");
@@ -195,9 +183,7 @@ export default function CodeEditor({
         activeFile={activeFile}
         onFileSelect={setSharedActiveFile}
         onAddFile={handleAddFile}
-        onDeleteFile={(name) =>
-          handleDeleteFile({ name, activeFileName: activeFile })
-        }
+        onDeleteFile={(name) => handleDeleteFile(name)}
       />
       <div id="monaco-editor" className="flex-1 min-h-0" />
     </div>

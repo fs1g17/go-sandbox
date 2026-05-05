@@ -82,6 +82,11 @@ func main() {
 			return err
 		}
 
+		err := clearSession(req.SessionID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
 		for fileName, fileValue := range req.Files {
 			err := writeToFile(fileName, req.SessionID, fileValue)
 			if err != nil {
@@ -158,21 +163,6 @@ func main() {
 		}
 
 		return c.JSON(http.StatusOK, map[string][]string{"session_ids": sessions})
-	})
-
-	e.DELETE("/file", func(c *echo.Context) error {
-		var req DeleteFileRequest
-		if err := c.Bind(&req); err != nil {
-			fmt.Print(fmt.Errorf("got error: %v", err))
-			return err
-		}
-
-		err := deleteFile(req.SessionID, req.Name)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-
-		return c.NoContent(http.StatusOK)
 	})
 
 	e.DELETE("/session", func(c *echo.Context) error {
