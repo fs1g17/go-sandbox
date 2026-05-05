@@ -1,71 +1,9 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-
-	"github.com/coder/websocket"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 )
-
-var sessionMissingErr = errors.New("session ID is missing")
-
-type ExecuteRequest struct {
-	Files     map[string]string `json:"files"`
-	SessionID string            `json:"session_id"`
-}
-
-type TerminalRequest struct {
-	SessionID string `query:"session_id"`
-}
-
-func (t *TerminalRequest) validate() error {
-	if t.SessionID == "" {
-		return sessionMissingErr
-	}
-
-	return nil
-}
-
-type FilesRequest struct {
-	SessionID string `query:"session_id"`
-}
-
-type DeleteFileRequest struct {
-	SessionID string `json:"session_id"`
-	Name      string `json:"name"`
-}
-
-type DeleteSessionRequest struct {
-	SessionID string `json:"session_id"`
-}
-
-func serve(hub *Hub, c *echo.Context, sessionID string) error {
-	conn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{InsecureSkipVerify: true})
-	if err != nil {
-		log.Printf("error1: %v", err)
-		//TODO: maybe handle the response here as well?
-		return err
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	client := &Client{
-		hub:       hub,
-		send:      make(chan []byte),
-		conn:      conn,
-		ctx:       ctx,
-		cancel:    cancel,
-		sessionID: sessionID,
-	}
-	hub.register <- client
-	go client.read(sessionID)
-	go client.write()
-	return nil
-}
 
 func main() {
 	e := echo.New()
@@ -76,107 +14,15 @@ func main() {
 	go hub.run()
 
 	e.POST("/execute", func(c *echo.Context) error {
-		var req ExecuteRequest
-		if err := c.Bind(&req); err != nil {
-			fmt.Print(fmt.Errorf("got error: %v", err))
-			return err
-		}
-
-		err := clearSession(req.SessionID)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-
-		for fileName, fileValue := range req.Files {
-			err := writeToFile(fileName, req.SessionID, fileValue)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-			}
-		}
-
-		run(hub, req.SessionID)
-
-		return c.String(http.StatusOK, "ok")
+		return execute(c, hub)
 	})
-
 	e.GET("/terminal", func(c *echo.Context) error {
-		var req TerminalRequest
-		if err := c.Bind(&req); err != nil {
-			fmt.Print(fmt.Errorf("got error: %v", err))
-			return err
-		}
-
-		if err := req.validate(); err != nil {
-			var status int
-			if errors.Is(err, sessionMissingErr) {
-				status = http.StatusBadRequest
-			} else {
-				status = http.StatusInternalServerError
-			}
-			return c.JSON(status, map[string]string{"error": err.Error()})
-		}
-
-		err := serve(hub, c, req.SessionID)
-		if err != nil {
-			return err
-		}
-		return nil
+		return terminal(c, hub)
 	})
-
-	e.GET("/new-session", func(c *echo.Context) error {
-		id, err := makeSessionFolder()
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-
-		return c.JSON(http.StatusCreated, map[string]string{"session_id": id})
-	})
-
-	e.GET("/session-files", func(c *echo.Context) error {
-		var req FilesRequest
-		if err := c.Bind(&req); err != nil {
-			fmt.Print(fmt.Errorf("got error: %v", err))
-			return err
-		}
-
-		fmt.Println(req.SessionID)
-
-		fileMap, err := getFiles(req.SessionID)
-		if err != nil {
-			if errors.Is(err, sessionNotDirectory) {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"error": sessionNotDirectory.Error()})
-			}
-			if os.IsNotExist(err) {
-				return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
-			}
-			fmt.Println(err)
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "something went wrong"})
-		}
-
-		return c.JSON(http.StatusOK, map[string]map[string]string{"fileMap": fileMap})
-	})
-
-	e.GET("/sessions", func(c *echo.Context) error {
-		sessions, err := getSessions()
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-
-		return c.JSON(http.StatusOK, map[string][]string{"session_ids": sessions})
-	})
-
-	e.DELETE("/session", func(c *echo.Context) error {
-		var req DeleteSessionRequest
-		if err := c.Bind(&req); err != nil {
-			fmt.Print(fmt.Errorf("got error: %v", err))
-			return err
-		}
-		err := deleteSession(req.SessionID)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-		return c.NoContent(http.StatusOK)
-	})
+	e.GET("/new-session", newSession)
+	e.GET("/session-files", sessionFiles)
+	e.GET("/sessions", sessions)
+	e.DELETE("/session", sessionDelete)
 
 	if err := e.Start(":8000"); err != nil {
 		e.Logger.Error("failed to start server", "error", err)
