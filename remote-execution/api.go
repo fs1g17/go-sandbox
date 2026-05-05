@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -31,7 +30,7 @@ func serve(hub *Hub, c *echo.Context, sessionID string) error {
 		sessionID: sessionID,
 	}
 	hub.register <- client
-	go client.read(sessionID)
+	go client.read()
 	go client.write()
 	return nil
 }
@@ -44,7 +43,7 @@ type ExecuteRequest struct {
 func execute(c *echo.Context, hub *Hub) error {
 	var req ExecuteRequest
 	if err := c.Bind(&req); err != nil {
-		fmt.Print(fmt.Errorf("got error: %v", err))
+		log.Printf("got error: %v", err)
 		return err
 	}
 
@@ -60,7 +59,10 @@ func execute(c *echo.Context, hub *Hub) error {
 		}
 	}
 
-	run(hub, req.SessionID)
+	err = run(hub, req.SessionID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
 
 	return c.String(http.StatusOK, "ok")
 }
@@ -80,7 +82,7 @@ func (t *TerminalRequest) validate() error {
 func terminal(c *echo.Context, hub *Hub) error {
 	var req TerminalRequest
 	if err := c.Bind(&req); err != nil {
-		fmt.Print(fmt.Errorf("got error: %v", err))
+		log.Printf("got error: %v", err)
 		return err
 	}
 
@@ -94,11 +96,7 @@ func terminal(c *echo.Context, hub *Hub) error {
 		return c.JSON(status, map[string]string{"error": err.Error()})
 	}
 
-	err := serve(hub, c, req.SessionID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return serve(hub, c, req.SessionID)
 }
 
 func newSession(c *echo.Context) error {
@@ -117,11 +115,9 @@ type FilesRequest struct {
 func sessionFiles(c *echo.Context) error {
 	var req FilesRequest
 	if err := c.Bind(&req); err != nil {
-		fmt.Print(fmt.Errorf("got error: %v", err))
+		log.Printf("got error: %v", err)
 		return err
 	}
-
-	fmt.Println(req.SessionID)
 
 	fileMap, err := getFiles(req.SessionID)
 	if err != nil {
@@ -131,7 +127,6 @@ func sessionFiles(c *echo.Context) error {
 		if os.IsNotExist(err) {
 			return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
 		}
-		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "something went wrong"})
 	}
 
@@ -154,7 +149,7 @@ type DeleteSessionRequest struct {
 func sessionDelete(c *echo.Context) error {
 	var req DeleteSessionRequest
 	if err := c.Bind(&req); err != nil {
-		fmt.Print(fmt.Errorf("got error: %v", err))
+		log.Printf("got error: %v", err)
 		return err
 	}
 	err := deleteSession(req.SessionID)

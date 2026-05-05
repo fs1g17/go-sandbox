@@ -38,8 +38,14 @@ func makeSessionFolder() (string, error) {
 		return "", err
 	}
 
-	writeToFile("go.mod", id.String(), "module example.com\n\ngo 1.24.5")
-	writeToFile("main.go", id.String(), "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world!!!\")\n}")
+	err = writeToFile("go.mod", id.String(), "module example.com\n\ngo 1.24.5")
+	if err != nil {
+		return "", err
+	}
+	err = writeToFile("main.go", id.String(), "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello world!!!\")\n}")
+	if err != nil {
+		return "", err
+	}
 
 	return id.String(), nil
 }

@@ -15,7 +15,7 @@ import (
 func createContainer(apiClient *client.Client, sessionID string) (client.ContainerCreateResult, error) {
 	sessionDir, err := filepath.Abs(path.Join("./code", sessionID))
 	if err != nil {
-		panic(err)
+		return client.ContainerCreateResult{}, err
 	}
 
 	result, err := apiClient.ContainerCreate(
@@ -43,7 +43,10 @@ type ContainerLogs struct {
 }
 
 func getContainerLogs(apiClient *client.Client, result client.ContainerCreateResult) (*ContainerLogs, error) {
-	apiClient.ContainerStart(context.Background(), result.ID, client.ContainerStartOptions{})
+	_, err := apiClient.ContainerStart(context.Background(), result.ID, client.ContainerStartOptions{})
+	if err != nil {
+		return &ContainerLogs{}, err
+	}
 
 	waitResult := apiClient.ContainerWait(context.Background(), result.ID, client.ContainerWaitOptions{Condition: container.WaitConditionNotRunning})
 
@@ -69,21 +72,21 @@ func getContainerLogs(apiClient *client.Client, result client.ContainerCreateRes
 	}, nil
 }
 
-func run(hub *Hub, sessionID string) {
+func run(hub *Hub, sessionID string) error {
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer apiClient.Close()
 
 	result, err := createContainer(apiClient, sessionID)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	containerLogs, err := getContainerLogs(apiClient, result)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	fmt.Printf("stdout: %s", containerLogs.stdout)
@@ -92,4 +95,6 @@ func run(hub *Hub, sessionID string) {
 	hub.message <- SessionMessage{sessionID: sessionID, message: msg}
 
 	apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
+
+	return nil
 }

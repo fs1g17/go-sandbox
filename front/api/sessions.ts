@@ -25,7 +25,7 @@ interface NewSessionResponse {
 }
 
 export async function createSession(): Promise<NewSessionResponse> {
-  const response = await axiosInstance.get<NewSessionResponse>("/new-session");
+  const response = await axiosInstance.post<NewSessionResponse>("/new-session");
   return response.data;
 }
 

@@ -19,7 +19,7 @@ func main() {
 	e.GET("/terminal", func(c *echo.Context) error {
 		return terminal(c, hub)
 	})
-	e.GET("/new-session", newSession)
+	e.POST("/new-session", newSession)
 	e.GET("/session-files", sessionFiles)
 	e.GET("/sessions", sessions)
 	e.DELETE("/session", sessionDelete)

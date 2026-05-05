@@ -15,7 +15,7 @@ type Client struct {
 	sessionID string
 }
 
-func (c *Client) read(sessionID string) {
+func (c *Client) read() {
 	defer c.cancel()
 
 	for {
@@ -24,7 +24,7 @@ func (c *Client) read(sessionID string) {
 			c.hub.unregister <- c
 			return
 		}
-		c.hub.message <- SessionMessage{sessionID: sessionID, message: string(r)}
+		c.hub.message <- SessionMessage{sessionID: c.sessionID, message: string(r)}
 	}
 }
 
