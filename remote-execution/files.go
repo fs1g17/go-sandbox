@@ -111,15 +111,6 @@ func getSessions() ([]string, error) {
 	return sessions, nil
 }
 
-func deleteFile(sessionID string, fileName string) error {
-	path := filepath.Join("./code", sessionID, fileName)
-	finalPath, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-	return os.Remove(finalPath)
-}
-
 func deleteSession(sessionID string) error {
 	path := filepath.Join("./code", sessionID)
 	finalPath, err := filepath.Abs(path)
@@ -127,4 +118,26 @@ func deleteSession(sessionID string) error {
 		return err
 	}
 	return os.RemoveAll(finalPath)
+}
+
+func clearSession(sessionID string) error {
+	path := filepath.Join("./code", sessionID)
+	finalPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(finalPath)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.Name() == ".cache" || entry.Name() == ".config" {
+			continue
+		}
+		entryPath := filepath.Join(finalPath, entry.Name())
+		if err := os.RemoveAll(entryPath); err != nil {
+			return err
+		}
+	}
+	return nil
 }

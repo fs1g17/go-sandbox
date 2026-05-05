@@ -13,9 +13,23 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 )
 
+var sessionMissingErr = errors.New("session ID is missing")
+
 type ExecuteRequest struct {
 	Files     map[string]string `json:"files"`
 	SessionID string            `json:"session_id"`
+}
+
+type TerminalRequest struct {
+	SessionID string `query:"session_id"`
+}
+
+func (t *TerminalRequest) validate() error {
+	if t.SessionID == "" {
+		return sessionMissingErr
+	}
+
+	return nil
 }
 
 type FilesRequest struct {
@@ -31,7 +45,7 @@ type DeleteSessionRequest struct {
 	SessionID string `json:"session_id"`
 }
 
-func serve(hub *Hub, c *echo.Context) error {
+func serve(hub *Hub, c *echo.Context, sessionID string) error {
 	conn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
 		log.Printf("error1: %v", err)
@@ -39,9 +53,16 @@ func serve(hub *Hub, c *echo.Context) error {
 		return err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	client := &Client{hub: hub, send: make(chan []byte), conn: conn, ctx: ctx, cancel: cancel}
+	client := &Client{
+		hub:       hub,
+		send:      make(chan []byte),
+		conn:      conn,
+		ctx:       ctx,
+		cancel:    cancel,
+		sessionID: sessionID,
+	}
 	hub.register <- client
-	go client.read()
+	go client.read(sessionID)
 	go client.write()
 	return nil
 }
@@ -61,6 +82,11 @@ func main() {
 			return err
 		}
 
+		err := clearSession(req.SessionID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
 		for fileName, fileValue := range req.Files {
 			err := writeToFile(fileName, req.SessionID, fileValue)
 			if err != nil {
@@ -68,13 +94,29 @@ func main() {
 			}
 		}
 
-		run(hub)
+		run(hub, req.SessionID)
 
 		return c.String(http.StatusOK, "ok")
 	})
 
 	e.GET("/terminal", func(c *echo.Context) error {
-		err := serve(hub, c)
+		var req TerminalRequest
+		if err := c.Bind(&req); err != nil {
+			fmt.Print(fmt.Errorf("got error: %v", err))
+			return err
+		}
+
+		if err := req.validate(); err != nil {
+			var status int
+			if errors.Is(err, sessionMissingErr) {
+				status = http.StatusBadRequest
+			} else {
+				status = http.StatusInternalServerError
+			}
+			return c.JSON(status, map[string]string{"error": err.Error()})
+		}
+
+		err := serve(hub, c, req.SessionID)
 		if err != nil {
 			return err
 		}
@@ -121,21 +163,6 @@ func main() {
 		}
 
 		return c.JSON(http.StatusOK, map[string][]string{"session_ids": sessions})
-	})
-
-	e.DELETE("/file", func(c *echo.Context) error {
-		var req DeleteFileRequest
-		if err := c.Bind(&req); err != nil {
-			fmt.Print(fmt.Errorf("got error: %v", err))
-			return err
-		}
-
-		err := deleteFile(req.SessionID, req.Name)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-
-		return c.NoContent(http.StatusOK)
 	})
 
 	e.DELETE("/session", func(c *echo.Context) error {

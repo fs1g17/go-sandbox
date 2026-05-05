@@ -7,14 +7,15 @@ import (
 )
 
 type Client struct {
-	hub    *Hub
-	send   chan []byte
-	conn   *websocket.Conn
-	ctx    context.Context
-	cancel context.CancelFunc
+	hub       *Hub
+	send      chan []byte
+	conn      *websocket.Conn
+	ctx       context.Context
+	cancel    context.CancelFunc
+	sessionID string
 }
 
-func (c *Client) read() {
+func (c *Client) read(sessionID string) {
 	defer c.cancel()
 
 	for {
@@ -23,7 +24,7 @@ func (c *Client) read() {
 			c.hub.unregister <- c
 			return
 		}
-		c.hub.message <- r
+		c.hub.message <- SessionMessage{sessionID: sessionID, message: string(r)}
 	}
 }
 

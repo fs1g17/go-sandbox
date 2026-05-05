@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path"
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/stdcopy"
@@ -11,8 +12,8 @@ import (
 	"github.com/moby/moby/client"
 )
 
-func createContainer(apiClient *client.Client) (client.ContainerCreateResult, error) {
-	codeDir, err := filepath.Abs("./code")
+func createContainer(apiClient *client.Client, sessionID string) (client.ContainerCreateResult, error) {
+	sessionDir, err := filepath.Abs(path.Join("./code", sessionID))
 	if err != nil {
 		panic(err)
 	}
@@ -26,7 +27,7 @@ func createContainer(apiClient *client.Client) (client.ContainerCreateResult, er
 				Cmd: []string{"go", "run", "."},
 			},
 			HostConfig: &container.HostConfig{
-				Binds: []string{codeDir + ":/home/sandbox"},
+				Binds: []string{sessionDir + ":/home/sandbox"},
 			},
 		})
 	if err != nil {
@@ -68,14 +69,14 @@ func getContainerLogs(apiClient *client.Client, result client.ContainerCreateRes
 	}, nil
 }
 
-func run(hub *Hub) {
+func run(hub *Hub, sessionID string) {
 	apiClient, err := client.New(client.FromEnv)
 	if err != nil {
 		panic(err)
 	}
 	defer apiClient.Close()
 
-	result, err := createContainer(apiClient)
+	result, err := createContainer(apiClient, sessionID)
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +89,7 @@ func run(hub *Hub) {
 	fmt.Printf("stdout: %s", containerLogs.stdout)
 	fmt.Printf("stderr: %s", containerLogs.stderr)
 	msg := fmt.Sprintf("stdout: %s\nstderr: %s\n", containerLogs.stdout, containerLogs.stderr)
-	hub.message <- []byte(msg)
+	hub.message <- SessionMessage{sessionID: sessionID, message: msg}
 
 	apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
 }

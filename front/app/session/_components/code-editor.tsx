@@ -5,10 +5,14 @@ import { editor } from "monaco-editor";
 import { CodeExecutor } from "../page";
 import FileSystem from "./file-system";
 import { MonacoBinding } from "y-monaco";
-import { WebrtcProvider } from "y-webrtc";
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { deleteFile } from "@/api/sessions";
-import { useMutation } from "@tanstack/react-query";
+import { WebsocketProvider } from "y-websocket";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 export interface CodeEditorHandle {
   getValue: () => string;
@@ -17,16 +21,14 @@ export interface CodeEditorHandle {
 export default function CodeEditor({
   ref,
   codeRef,
-  initialFiles = {},
   sessionId = "",
 }: {
   ref: React.Ref<CodeEditorHandle>;
   codeRef: React.Ref<CodeExecutor>;
-  initialFiles?: Record<string, string>;
   sessionId?: string;
 }) {
   const yDocRef = useRef<Doc>(null);
-  const providerRef = useRef<WebrtcProvider>(null);
+  const providerRef = useRef<WebsocketProvider>(null);
   const bindingsRef = useRef<Map<string, MonacoBinding>>(new Map());
   const modelsRef = useRef<Map<string, editor.ITextModel>>(new Map());
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -63,39 +65,42 @@ export default function CodeEditor({
     setSharedActiveFile(name);
   }
 
-  const { mutate: handleDeleteFile } = useMutation({
-    mutationFn: ({
-      name,
-      activeFileName,
-    }: {
-      name: string;
-      activeFileName?: string;
-    }) => deleteFile(sessionId, name),
-    onSettled: (_, _2, { name, activeFileName }) => {
-      console.log("deleted file successfully");
-      const yFiles = yDocRef.current?.getArray<string>("files");
-      if (yFiles) {
-        const idx = yFiles.toArray().indexOf(name);
-        if (idx !== -1) yFiles.delete(idx, 1);
-      }
+  function handleDeleteFile(name: string) {
+    const yFiles = yDocRef.current?.getArray<string>("files");
+    if (yFiles) {
+      const idx = yFiles.toArray().indexOf(name);
+      if (idx !== -1) yFiles.delete(idx, 1);
+    }
 
-      bindingsRef.current.get(name)?.destroy();
-      bindingsRef.current.delete(name);
-      modelsRef.current.get(name)?.dispose();
-      modelsRef.current.delete(name);
+    bindingsRef.current.get(name)?.destroy();
+    bindingsRef.current.delete(name);
+    modelsRef.current.get(name)?.dispose();
+    modelsRef.current.delete(name);
 
-      if (activeFileName === name) {
-        const remaining =
-          yDocRef.current?.getArray<string>("files").toArray() ?? [];
-        if (remaining.length > 0) {
-          setSharedActiveFile(remaining[0]);
-        } else {
-          editorRef.current?.setModel(null);
-          setActiveFile(undefined);
-        }
+    if (activeFile === name) {
+      const remaining =
+        yDocRef.current?.getArray<string>("files").toArray() ?? [];
+      if (remaining.length > 0) {
+        setSharedActiveFile(remaining[0]);
+      } else {
+        editorRef.current?.setModel(null);
+        setActiveFile(undefined);
       }
-    },
-  });
+    }
+  }
+
+  const createModelBinding = useCallback((activeFile: string) => {
+    const model = editor.createModel("", "go");
+    const yText = yDocRef.current!.getText(activeFile);
+    const binding = new MonacoBinding(
+      yText,
+      model,
+      new Set([editorRef.current!]),
+      providerRef.current!.awareness,
+    );
+    modelsRef.current.set(activeFile, model);
+    bindingsRef.current.set(activeFile, binding);
+  }, []);
 
   useEffect(() => {
     const monacoEditorDiv = document.getElementById("monaco-editor");
@@ -103,7 +108,11 @@ export default function CodeEditor({
 
     if (!yDocRef.current) {
       yDocRef.current = new Doc();
-      providerRef.current = new WebrtcProvider("monaco", yDocRef.current);
+      providerRef.current = new WebsocketProvider(
+        "ws://localhost:1234",
+        sessionId,
+        yDocRef.current,
+      );
       editorRef.current = editor.create(monacoEditorDiv, {
         value: "",
         language: "go",
@@ -113,60 +122,59 @@ export default function CodeEditor({
       const yFiles = yDocRef.current.getArray<string>("files");
       const yState = yDocRef.current.getMap("state");
 
-      yFiles.observe(() => setFiles(yFiles.toArray()));
+      yFiles.observe(() => {
+        const updatedFileNames = yFiles.toArray();
+        setFiles(updatedFileNames);
+        // create models and bindings for each file name
+
+        // filter out the new ones
+        const newFileNames = updatedFileNames.filter(
+          (updatedFileName) => !modelsRef.current.has(updatedFileName),
+        );
+        // create models for each
+        newFileNames.forEach(createModelBinding);
+      });
       yState.observe(() => {
         const af = yState.get("activeFile") as string | undefined;
         if (af) setActiveFile(af);
       });
 
-      // Wait for WebRTC peer discovery before deciding whether to seed.
-      // awareness.getStates() includes the local client, so size > 1 means
-      // another peer is already in the room and will sync state — skip seeding.
-      setTimeout(() => {
-        const peers = providerRef.current!.awareness.getStates().size;
-        if (
-          peers <= 1 &&
-          yFiles.length === 0 &&
-          Object.keys(initialFiles).length > 0
-        ) {
-          yDocRef.current!.transact(() => {
-            const names = Object.keys(initialFiles);
-            yFiles.push(names);
-            names.forEach((name) => {
-              const yText = yDocRef.current!.getText(name);
-              if (yText.length === 0 && initialFiles[name]) {
-                yText.insert(0, initialFiles[name]);
-              }
-            });
-          });
-          yState.set("activeFile", Object.keys(initialFiles)[0]);
-        }
-      }, 500);
-
       setFiles(yFiles.toArray());
       const af = yState.get("activeFile") as string | undefined;
       if (af) setActiveFile(af);
-
-      return;
     }
 
+    return () => {
+      // tear everything down
+      // provider, bindings, models, yDoc
+      bindingsRef.current.forEach((binging) => binging.destroy());
+      modelsRef.current.forEach((model) => model.dispose());
+      editorRef.current?.dispose();
+      providerRef.current?.disconnect();
+      providerRef.current?.destroy();
+      yDocRef.current?.destroy();
+
+      bindingsRef.current = new Map();
+      modelsRef.current = new Map();
+      editorRef.current = null;
+      providerRef.current = null;
+      yDocRef.current = null;
+
+      setActiveFile(undefined);
+      setFiles([]);
+    };
+  }, [sessionId, createModelBinding]);
+
+  useEffect(() => {
     if (!activeFile) return;
 
+    // if the user created a new file
     if (!modelsRef.current.has(activeFile)) {
-      const model = editor.createModel("", "go");
-      const yText = yDocRef.current.getText(activeFile);
-      const binding = new MonacoBinding(
-        yText,
-        model,
-        new Set([editorRef.current!]),
-        providerRef.current!.awareness,
-      );
-      modelsRef.current.set(activeFile, model);
-      bindingsRef.current.set(activeFile, binding);
+      createModelBinding(activeFile);
     }
 
     editorRef.current!.setModel(modelsRef.current.get(activeFile)!);
-  }, [activeFile]);
+  }, [activeFile, createModelBinding]);
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -175,9 +183,7 @@ export default function CodeEditor({
         activeFile={activeFile}
         onFileSelect={setSharedActiveFile}
         onAddFile={handleAddFile}
-        onDeleteFile={(name) =>
-          handleDeleteFile({ name, activeFileName: activeFile })
-        }
+        onDeleteFile={(name) => handleDeleteFile(name)}
       />
       <div id="monaco-editor" className="flex-1 min-h-0" />
     </div>

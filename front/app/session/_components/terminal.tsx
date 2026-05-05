@@ -10,6 +10,7 @@ export interface TerminalLine {
 interface TerminalProps {
   lines: TerminalLine[];
   running: boolean;
+  sessionId: string;
   onRun: () => void;
   onClear: () => void;
   addLines: (lines: TerminalLine[]) => void;
@@ -20,6 +21,7 @@ type Status = "open" | "connecting" | "closed";
 export default function Terminal({
   lines,
   running,
+  sessionId,
   onRun,
   onClear,
   addLines,
@@ -42,7 +44,9 @@ export default function Terminal({
 
     console.log("running websocket initialisation");
 
-    const socket = new WebSocket("ws://localhost:8000/terminal");
+    const socket = new WebSocket(
+      `ws://localhost:8000/terminal?session_id=${sessionId}`,
+    );
     setStatus("connecting");
 
     // Connection opened
@@ -94,7 +98,7 @@ export default function Terminal({
         connection.current = null;
       }
     };
-  }, []);
+  }, [sessionId]);
 
   return (
     <div

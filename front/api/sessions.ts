@@ -45,15 +45,7 @@ export async function getSessionFiles(
 
 export async function executeCode(
   files: Record<string, string>,
+  session_id: string,
 ): Promise<void> {
-  await axiosInstance.post("/execute", { files });
-}
-
-export async function deleteFile(
-  sessionId: string,
-  name: string,
-): Promise<void> {
-  await axiosInstance.delete("/file", {
-    data: { session_id: sessionId, name },
-  });
+  await axiosInstance.post("/execute", { files, session_id });
 }
