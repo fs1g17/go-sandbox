@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CodeEditorHandle } from "./_components/code-editor";
 import Terminal, { TerminalLine } from "./_components/terminal";
+import SessionLoading from "./_components/session-loading";
+import SessionError from "./_components/session-error";
 import { executeCode, getSessionFiles } from "@/api/sessions";
 
 const CodeEditor = dynamic(() => import("./_components/code-editor"), {
@@ -58,15 +60,15 @@ export default function Home() {
   }
 
   if (sessionId === "") {
-    return <div>SessionID is missing</div>;
+    return <SessionError message="no session id was provided in the url" />;
   }
 
   if (sessionFilesLoading) {
-    return <div>Session is loading</div>;
+    return <SessionLoading />;
   }
 
   if (isSessionError) {
-    return <div>Failed to get session, it may not exist</div>;
+    return <SessionError message="this session doesn't exist or has been deleted" />;
   }
 
   return (

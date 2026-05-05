@@ -45,3 +45,5 @@ Navigate to `http://localhost:3000` and check it out
 - make sure that when visiting a link with invalid session id, error is displayed in some form:
   - could be done with a simple /session-exists endpoint?
   - in yjs websocket server, I could initialise state with "error", and check for that, but that doesn't feel as clean
+
+deleting files - currently they're only ever written, so maybe clear all the folder contents before running?
