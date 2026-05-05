@@ -41,6 +41,11 @@ export default function Home() {
     },
   });
 
+  const { isLoading: sessionFilesLoading, isError: isSessionError } = useQuery({
+    queryKey: ["session-files", { sessionId }],
+    queryFn: () => getSessionFiles(sessionId),
+  });
+
   async function handleRun() {
     setLines((prev) => [...prev, { text: `$ run`, type: "info" }]);
 
@@ -52,12 +57,25 @@ export default function Home() {
     run(codeMap);
   }
 
+  if (sessionId === "") {
+    return <div>SessionID is missing</div>;
+  }
+
+  if (sessionFilesLoading) {
+    return <div>Session is loading</div>;
+  }
+
+  if (isSessionError) {
+    return <div>Failed to get session, it may not exist</div>;
+  }
+
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
       <CodeEditor ref={editorRef} codeRef={codeRef} sessionId={sessionId} />
       <Terminal
         lines={lines}
         running={running}
+        sessionId={sessionId}
         onRun={handleRun}
         addLines={addLines}
         onClear={() => setLines([])}

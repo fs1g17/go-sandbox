@@ -89,7 +89,7 @@ func run(hub *Hub, sessionID string) {
 	fmt.Printf("stdout: %s", containerLogs.stdout)
 	fmt.Printf("stderr: %s", containerLogs.stderr)
 	msg := fmt.Sprintf("stdout: %s\nstderr: %s\n", containerLogs.stdout, containerLogs.stderr)
-	hub.message <- []byte(msg)
+	hub.message <- SessionMessage{sessionID: sessionID, message: msg}
 
 	apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
 }
