@@ -78,3 +78,7 @@ deleting files - currently they're only ever written, so maybe clear all the fol
 ### Resoureces:
 
 [Tutorial](https://how2.sh/posts/how-to-build-ai-code-execution-sandbox)
+
+### TODO:
+
+- in terminal websocket, maybe implement reconnection logic?
