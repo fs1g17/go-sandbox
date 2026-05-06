@@ -77,4 +77,4 @@ Navigate to `http://localhost:3000` and check it out
 - ~~container leak on error path (need a defer function)~~
 - add container resource limits
 - CORS bullshit
-- make consistent error handling (use c.JSON instead of return err in api.go)
+- ~~make consistent error handling (use c.JSON instead of return err in api.go)~~
