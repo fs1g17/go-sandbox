@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"path"
 	"path/filepath"
 
@@ -21,7 +22,7 @@ func createContainer(apiClient *client.Client, sessionID string) (client.Contain
 	result, err := apiClient.ContainerCreate(
 		context.Background(),
 		client.ContainerCreateOptions{
-			Name:  "golang_test",
+			Name:  sessionID,
 			Image: "test-go-sandbox:latest",
 			Config: &container.Config{
 				Cmd: []string{"go", "run", "."},
@@ -83,6 +84,10 @@ func run(hub *Hub, sessionID string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_, err := apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
+		log.Printf("error removing container %s: %v \n", result.ID, err)
+	}()
 
 	containerLogs, err := getContainerLogs(apiClient, result)
 	if err != nil {
@@ -93,8 +98,6 @@ func run(hub *Hub, sessionID string) error {
 	fmt.Printf("stderr: %s", containerLogs.stderr)
 	msg := fmt.Sprintf("stdout: %s\nstderr: %s\n", containerLogs.stdout, containerLogs.stderr)
 	hub.message <- SessionMessage{sessionID: sessionID, message: msg}
-
-	apiClient.ContainerRemove(context.Background(), result.ID, client.ContainerRemoveOptions{})
 
 	return nil
 }
