@@ -20,7 +20,8 @@ func main() {
 		return terminal(c, hub)
 	})
 	e.POST("/new-session", newSession)
-	e.GET("/session-files", sessionFiles)
+	e.POST("/session-files", postSessionFiles)
+	e.GET("/session-files", getSessionFiles)
 	e.GET("/sessions", sessions)
 	e.DELETE("/session", sessionDelete)
 

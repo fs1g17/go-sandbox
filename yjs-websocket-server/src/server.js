@@ -4,7 +4,7 @@ import WebSocket from "ws";
 import http from "http";
 import * as number from "lib0/number";
 import { setPersistence, setupWSConnection } from "./utils.js";
-import { fetchSessionFiles } from "./connector.js";
+import { fetchSessionFiles, saveSessionFiles } from "./connector.js";
 
 const wss = new WebSocket.Server({ noServer: true });
 const host = process.env.HOST || "localhost";
@@ -52,7 +52,23 @@ setPersistence({
     // Called when the last connected client disconnects from this document
     // (i.e. the session is closing). Flush / persist any remaining state.
 
-    console.log("writeState: " + docName);
+    try {
+      const filesArray = ydoc.getArray("files");
+
+      const fileMap = /** @type { Record<string,string> } */ ({});
+
+      for (const fileName of filesArray.toArray()) {
+        const yText = ydoc.getText(fileName);
+        fileMap[fileName] = yText.toString();
+        console.log({ [fileName]: yText.toString() });
+      }
+
+      await saveSessionFiles(docName, fileMap);
+
+      console.log("writeState: " + docName);
+    } catch (error) {
+      console.error(error);
+    }
   },
 });
 

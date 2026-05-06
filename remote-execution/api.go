@@ -112,7 +112,7 @@ type FilesRequest struct {
 	SessionID string `query:"session_id"`
 }
 
-func sessionFiles(c *echo.Context) error {
+func getSessionFiles(c *echo.Context) error {
 	var req FilesRequest
 	if err := c.Bind(&req); err != nil {
 		log.Printf("got error: %v", err)
@@ -131,6 +131,45 @@ func sessionFiles(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]map[string]string{"fileMap": fileMap})
+}
+
+type PostFilesRequest struct {
+	SessionID string            `json:"session_id"`
+	Files     map[string]string `json:"files"`
+}
+
+func (r *PostFilesRequest) validate() error {
+	if r.SessionID == "" {
+		return sessionMissingErr
+	}
+
+	return nil
+}
+
+func postSessionFiles(c *echo.Context) error {
+	var req PostFilesRequest
+	if err := c.Bind(&req); err != nil {
+		log.Printf("got error: %v", err)
+		return err
+	}
+
+	if err := req.validate(); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	err := clearSession(req.SessionID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	for fileName, fileValue := range req.Files {
+		err := writeToFile(fileName, req.SessionID, fileValue)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 func sessions(c *echo.Context) error {

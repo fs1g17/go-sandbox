@@ -22,3 +22,27 @@ export async function fetchSessionFiles(sessionId) {
   );
   return data.fileMap;
 }
+
+/**
+ *
+ * @param {string} sessionId
+ * @param {Record<string,string>} fileMap
+ * @returns {Promise<void>}
+ */
+export async function saveSessionFiles(sessionId, fileMap) {
+  const response = await fetch(`${remoteExecutionUrl}/session-files`, {
+    method: "POST",
+    body: JSON.stringify({
+      session_id: sessionId,
+      files: fileMap,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const data = /** @type {{ error: string }} */ (await response.json());
+    throw new Error(data.error);
+  }
+}
