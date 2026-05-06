@@ -18,7 +18,7 @@ func serve(hub *Hub, c *echo.Context, sessionID string) error {
 	if err != nil {
 		log.Printf("error1: %v", err)
 		//TODO: maybe handle the response here as well?
-		return err
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed establishing websocket connection"})
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	client := &Client{
@@ -40,11 +40,22 @@ type ExecuteRequest struct {
 	SessionID string            `json:"session_id"`
 }
 
+func (r *ExecuteRequest) validate() error {
+	if r.SessionID == "" {
+		return sessionMissingErr
+	}
+
+	return nil
+}
+
 func execute(c *echo.Context, hub *Hub) error {
 	var req ExecuteRequest
 	if err := c.Bind(&req); err != nil {
 		log.Printf("got error: %v", err)
-		return err
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+	if err := req.validate(); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	err := clearSession(req.SessionID)
@@ -83,7 +94,7 @@ func terminal(c *echo.Context, hub *Hub) error {
 	var req TerminalRequest
 	if err := c.Bind(&req); err != nil {
 		log.Printf("got error: %v", err)
-		return err
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	if err := req.validate(); err != nil {
@@ -116,7 +127,7 @@ func getSessionFiles(c *echo.Context) error {
 	var req FilesRequest
 	if err := c.Bind(&req); err != nil {
 		log.Printf("got error: %v", err)
-		return err
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	fileMap, err := getFiles(req.SessionID)
@@ -150,7 +161,7 @@ func postSessionFiles(c *echo.Context) error {
 	var req PostFilesRequest
 	if err := c.Bind(&req); err != nil {
 		log.Printf("got error: %v", err)
-		return err
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	if err := req.validate(); err != nil {
@@ -189,11 +200,11 @@ func sessionDelete(c *echo.Context) error {
 	var req DeleteSessionRequest
 	if err := c.Bind(&req); err != nil {
 		log.Printf("got error: %v", err)
-		return err
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	err := deleteSession(req.SessionID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
-	return c.NoContent(http.StatusOK)
+	return c.NoContent(http.StatusNoContent)
 }

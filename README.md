@@ -74,7 +74,7 @@ Navigate to `http://localhost:3000` and check it out
 - in terminal websocket, maybe implement reconnection logic?
 - consider what happens if frontend is open (nodejs websocket yjs has the doc) but the session is deleted in backend
 
-- container leak on error path (need a defer function)
+- ~~container leak on error path (need a defer function)~~
 - add container resource limits
 - CORS bullshit
 - make consistent error handling (use c.JSON instead of return err in api.go)
